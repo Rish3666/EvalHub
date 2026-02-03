@@ -386,7 +386,7 @@ export default function CommunityPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search communities..."
-                            className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 font-mono text-xs uppercase tracking-widest"
+                            className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 font-mono text-sm tracking-widest"
                         />
 
                         {/* View Mode Tabs */}
