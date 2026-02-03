@@ -11,14 +11,8 @@ export async function POST(request: Request) {
         // Get current session to retrieve the GitHub provider token
         const { data: { session } } = await supabase.auth.getSession()
 
-        if (!session || !session.provider_token) {
-            // Fallback: If provider_token is missing in session (common in some Supabase configs),
-            // we might need to rely on the user providing it or re-authenticating.
-            // For now, return 401.
-            return NextResponse.json({ error: 'GitHub Access Token not found. Please sign out and sign in again.' }, { status: 401 })
-        }
-
-        const token = session.provider_token;
+        // Token is optional for public repos
+        const token = session?.provider_token || null;
 
         // 1. Fetch Repo Metadata
         const [structure, readme] = await Promise.all([
@@ -35,8 +29,15 @@ export async function POST(request: Request) {
 
         return NextResponse.json(analysis)
 
-    } catch (error) {
-        console.error("Analysis API Error:", error)
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    } catch (error: any) {
+        console.error("Analysis API Error Details:", {
+            message: error.message,
+            stack: error.stack,
+            response: error.response?.data
+        })
+        return NextResponse.json({
+            error: 'Internal Server Error',
+            details: error.message
+        }, { status: 500 })
     }
 }

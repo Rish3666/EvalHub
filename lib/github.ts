@@ -5,14 +5,18 @@ interface GitHubTreeItem {
     type: "blob" | "tree";
 }
 
-export async function fetchRepoStructure(owner: string, repo: string, token: string): Promise<string> {
+export async function fetchRepoStructure(owner: string, repo: string, token: string | null): Promise<string> {
     try {
+        const headers: HeadersInit = {
+            "Accept": "application/vnd.github.v3+json",
+        };
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
         // 1. Fetch repository data to get the default branch
         const repoResponse = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github.v3+json",
-            },
+            headers,
             next: { revalidate: 60 }
         });
 
@@ -26,10 +30,7 @@ export async function fetchRepoStructure(owner: string, repo: string, token: str
 
         // 2. Fetch the tree recursively using the default branch
         const treeResponse = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github.v3+json",
-            },
+            headers,
             next: { revalidate: 60 }
         });
 
@@ -54,13 +55,17 @@ function formatTree(tree: GitHubTreeItem[]): string {
         .join("\n");
 }
 
-export async function fetchReadme(owner: string, repo: string, token: string): Promise<string> {
+export async function fetchReadme(owner: string, repo: string, token: string | null): Promise<string> {
     try {
+        const headers: HeadersInit = {
+            "Accept": "application/vnd.github.v3.raw",
+        };
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
         const response = await fetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/readme`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/vnd.github.v3.raw", // Request raw content
-            },
+            headers,
             next: { revalidate: 60 }
         });
 

@@ -95,10 +95,10 @@ export function TerminalHeader() {
 
     return (
         <header className="w-full border-b border-white bg-black px-6 py-4 flex items-center justify-between sticky top-0 z-50 gap-4">
-            <div className="flex items-center gap-4 shrink-0">
+            <Link href="/feed" className="flex items-center gap-4 shrink-0 hover:opacity-80 transition-opacity">
                 <Terminal className="text-white w-6 h-6" />
                 <h2 className="text-white text-xl font-bold tracking-widest uppercase font-mono">EVALHUB_</h2>
-            </div>
+            </Link>
 
             <div className="hidden md:block flex-1 max-w-2xl px-8">
                 <div className="relative w-full" ref={searchRef}>
@@ -195,6 +195,17 @@ export function TerminalHeader() {
                     )}
                 >
                     COMMUNITY
+                </Link>
+                <Link
+                    href="/inbox"
+                    className={cn(
+                        "text-sm font-bold uppercase tracking-widest transition-colors font-mono",
+                        isActive('/inbox')
+                            ? "text-black bg-white border border-white px-6 py-2 rounded-full hover:bg-gray-200"
+                            : "text-white font-medium hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
+                    )}
+                >
+                    INBOX
                 </Link>
                 <Link
                     href="/profile"

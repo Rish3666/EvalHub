@@ -28,7 +28,7 @@ function AnalysisContent() {
     const [analyzing, setAnalyzing] = useState(false)
     const [searchUsername, setSearchUsername] = useState('')
     const [searchedUser, setSearchedUser] = useState<{ login: string, avatar_url: string } | null>(null)
-    const [isFollowing, setIsFollowing] = useState(false)
+    const [requestSent, setRequestSent] = useState(false)
 
     const supabase = createClient()
     const searchParams = useSearchParams()
@@ -64,15 +64,32 @@ function AnalysisContent() {
         setLoading(false)
     }
 
-    const checkIfFollowing = async (username: string, token: string) => {
+    const checkIfRequestExists = async (username: string) => {
         try {
-            const res = await fetch(`https://api.github.com/user/following/${username}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            if (res.status === 204) setIsFollowing(true)
-            else setIsFollowing(false)
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) return
+
+            const { data: targetUser } = await supabase
+                .from('users')
+                .select('id')
+                .eq('github_username', username)
+                .single()
+
+            if (!targetUser) return
+
+            const { data: existing } = await supabase
+                .from('friend_requests')
+                .select('status')
+                .or(`and(requester_id.eq.${session.user.id},addressee_id.eq.${targetUser.id}),and(requester_id.eq.${targetUser.id},addressee_id.eq.${session.user.id})`)
+                .maybeSingle()
+
+            if (existing) {
+                setRequestSent(true)
+            } else {
+                setRequestSent(false)
+            }
         } catch (e) {
-            console.error(e)
+            console.error("Check friend request error:", e)
         }
     }
 
@@ -106,14 +123,14 @@ function AnalysisContent() {
                         login: ownerLogin,
                         avatar_url: data[0].owner.avatar_url
                     })
-                    if (token) checkIfFollowing(ownerLogin, token)
+                    checkIfRequestExists(ownerLogin)
                 } else {
                     // try fetch user directly if no repos
                     const uRes = await fetch(`https://api.github.com/users/${username}`, { headers });
                     if (uRes.ok) {
                         const uData = await uRes.json()
                         setSearchedUser({ login: uData.login, avatar_url: uData.avatar_url })
-                        if (token) checkIfFollowing(uData.login, token)
+                        checkIfRequestExists(uData.login)
                     }
                 }
             } else {
@@ -127,11 +144,6 @@ function AnalysisContent() {
         } finally {
             setLoading(false)
         }
-    }
-
-    const handleSearchSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        handleSearchUserInternal(searchUsername)
     }
 
     const handleAnalyze = async (repo: Repo) => {
@@ -163,21 +175,33 @@ function AnalysisContent() {
 
         try {
             const { data: { session } } = await supabase.auth.getSession()
-            if (session?.provider_token) {
-                const res = await fetch(`https://api.github.com/user/following/${searchedUser.login}`, {
-                    method: 'PUT',
-                    headers: {
-                        Authorization: `Bearer ${session.provider_token}`,
-                        "Content-Length": "0"
-                    }
-                })
+            if (!session) return
 
-                if (res.status === 204) {
-                    setIsFollowing(true)
-                    toast.success(`You are now following ${searchedUser.login}!`)
-                } else {
-                    toast.error("Failed to follow user.")
-                }
+            // 1. Find the user in our database first
+            const { data: dbUser, error: dbError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('github_username', searchedUser.login)
+                .single()
+
+            if (dbError || !dbUser) {
+                toast.error("User has not joined EvalHub yet.")
+                return
+            }
+
+            // 2. Send the internal friend request
+            const res = await fetch('/api/friends/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId: dbUser.id })
+            })
+
+            if (res.ok) {
+                toast.success(`Friend request sent to ${searchedUser.login}!`)
+                setRequestSent(true)
+            } else {
+                const err = await res.json()
+                toast.error(err.error || "Failed to send request.")
             }
         } catch (error) {
             console.error(error)
@@ -194,28 +218,6 @@ function AnalysisContent() {
                     </h1>
                     <p className="text-gray-400 text-sm mt-2 tracking-widest font-mono">&gt; AI_Module // Interview_Prep_Mode</p>
                 </div>
-
-                {/* Search Bar */}
-                <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full md:w-auto">
-                    <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 material-symbols-outlined text-sm">search</span>
-                        <input
-                            type="text"
-                            placeholder="Search GitHub User..."
-                            value={searchUsername}
-                            onChange={(e) => setSearchUsername(e.target.value)}
-                            className="bg-black border border-white/30 text-white pl-9 pr-4 py-2 text-xs font-mono w-[250px] focus:outline-none focus:border-white transition-colors"
-                        />
-                    </div>
-                    <Button type="submit" variant="outline" className="h-9 border-white hover:bg-white hover:text-black rounded-none text-xs font-bold tracking-widest">
-                        GO
-                    </Button>
-                    {searchUsername && (
-                        <Button type="button" onClick={() => { setSearchUsername(''); fetchUserRepos(); setSearchedUser(null); window.history.pushState({}, '', '/analysis') }} variant="ghost" className="h-9 text-xs text-gray-400 hover:text-white">
-                            Clear
-                        </Button>
-                    )}
-                </form>
             </div>
 
             {/* Searched User Profile Header */}
@@ -234,11 +236,11 @@ function AnalysisContent() {
                     <div className="flex items-center gap-4">
                         <Button
                             onClick={handleAddFriend}
-                            disabled={isFollowing}
-                            className={`font-bold tracking-widest font-mono border border-white ${isFollowing ? 'bg-black text-white cursor-default hover:bg-black hover:text-white' : 'bg-white text-black hover:bg-gray-200'}`}
+                            disabled={requestSent}
+                            className={`font-bold tracking-widest font-mono border border-white ${requestSent ? 'bg-black text-white cursor-default hover:bg-black hover:text-white' : 'bg-white text-black hover:bg-gray-200'}`}
                         >
-                            <span className="material-symbols-outlined text-sm mr-2">{isFollowing ? 'check' : 'person_add'}</span>
-                            {isFollowing ? 'FRIEND ADDED' : 'ADD FRIEND'}
+                            <span className="material-symbols-outlined text-sm mr-2">{requestSent ? 'check' : 'person_add'}</span>
+                            {requestSent ? 'REQUEST SENT' : 'ADD FRIEND'}
                         </Button>
                         <Button onClick={() => window.location.href = '/leaderboard'} variant="outline" className="border-white text-white hover:bg-white hover:text-black font-mono font-bold tracking-widest">
                             <span className="material-symbols-outlined text-sm mr-2">group</span>

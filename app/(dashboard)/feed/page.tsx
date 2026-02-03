@@ -31,55 +31,85 @@ export default function FeedPage() {
     const supabase = createClient()
 
     useEffect(() => {
+        let ismounted = true;
         async function fetchFeed() {
             setLoading(true)
+            // setFeedItems([]) // Optional: Clear previous items to avoid confusion while loading
+
             const { data: { session } } = await supabase.auth.getSession()
 
             if (session?.provider_token) {
                 try {
-                    let usersToFetch: any[] = [];
-                    const headers = { Authorization: `Bearer ${session.provider_token}` };
+                    let uniqueUsers: any[] = [];
+                    const headers = {
+                        'Authorization': `Bearer ${session.provider_token}`,
+                        'Accept': 'application/vnd.github+json'
+                    };
 
-                    // 1. Fetch Users based on Filter
-                    if (filter === 'friends' || filter === 'both') {
-                        const res = await fetch('https://api.github.com/user/following?per_page=10', { headers });
-                        if (res.ok) usersToFetch = [...usersToFetch, ...await res.json()];
+                    // 1. Fetch Users based on Filter explicitly
+                    if (filter === 'friends') {
+                        const res = await fetch('https://api.github.com/user/following?per_page=15', {
+                            headers,
+                            cache: 'no-store'
+                        });
+                        if (res.ok) uniqueUsers = await res.json();
+                    }
+                    else if (filter === 'followers') {
+                        const res = await fetch('https://api.github.com/user/followers?per_page=15', {
+                            headers,
+                            cache: 'no-store'
+                        });
+                        if (res.ok) uniqueUsers = await res.json();
+                    }
+                    else if (filter === 'both') {
+                        const [followingRes, followersRes] = await Promise.all([
+                            fetch('https://api.github.com/user/following?per_page=10', { headers, cache: 'no-store' }),
+                            fetch('https://api.github.com/user/followers?per_page=10', { headers, cache: 'no-store' })
+                        ]);
+
+                        const following = followingRes.ok ? await followingRes.json() : [];
+                        const followers = followersRes.ok ? await followersRes.json() : [];
+
+                        // Deduplicate by combining and using Map
+                        const combined = [...following, ...followers];
+                        uniqueUsers = Array.from(new Map(combined.map((u: any) => [u.login, u])).values());
                     }
 
-                    if (filter === 'followers' || filter === 'both') {
-                        const res = await fetch('https://api.github.com/user/followers?per_page=10', { headers });
-                        if (res.ok) usersToFetch = [...usersToFetch, ...await res.json()];
-                    }
+                    if (!ismounted) return;
 
-                    // Deduplicate users (if 'both')
-                    const uniqueUsers = Array.from(new Map(usersToFetch.map(user => [user.login, user])).values());
+                    if (uniqueUsers.length === 0) {
+                        setFeedItems([]);
+                        setLoading(false);
+                        return;
+                    }
 
                     // 2. Fetch Latest Repo for each User
                     const feedPromises = uniqueUsers.map(async (user: any) => {
-                        const repoRes = await fetch(`https://api.github.com/users/${user.login}/repos?sort=pushed&per_page=1`, { headers });
+                        const repoRes = await fetch(`https://api.github.com/users/${user.login}/repos?sort=pushed&per_page=1`, { headers, cache: 'no-store' });
                         if (repoRes.ok) {
                             const repos = await repoRes.json();
-                            return repos[0]; // Get the single latest repo
+                            return repos.length > 0 ? repos[0] : null;
                         }
                         return null;
                     });
 
                     const results = await Promise.all(feedPromises);
-                    const validItems = results.filter(item => item !== null && item !== undefined);
+                    const validItems = results.filter(item => item !== null);
 
                     // 3. Sort by pushed_at (newest first)
                     validItems.sort((a, b) => new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime());
 
-                    setFeedItems(validItems);
+                    if (ismounted) setFeedItems(validItems);
 
                 } catch (error) {
                     console.error("Feed Error:", error)
                 }
             }
-            setLoading(false)
+            if (ismounted) setLoading(false)
         }
 
         fetchFeed()
+        return () => { ismounted = false }
     }, [filter]) // Re-run when filter changes
 
     return (

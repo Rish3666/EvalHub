@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, getDay } from 'date-fns'
 
 interface GitHubUser {
     login: string;
@@ -29,6 +29,8 @@ export default function ProfilePage() {
     const [user, setUser] = useState<GitHubUser | null>(null)
     const [repos, setRepos] = useState<Repo[]>([])
     const [loading, setLoading] = useState(true)
+    const [workTimeDistribution, setWorkTimeDistribution] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
+    const [codeFrequency, setCodeFrequency] = useState<'High' | 'Medium' | 'Low'>('Low')
     const supabase = createClient()
 
     useEffect(() => {
@@ -43,11 +45,44 @@ export default function ProfilePage() {
                 })
                 if (userRes.ok) setUser(await userRes.json())
 
-                // Fetch Repos
-                const repoRes = await fetch('https://api.github.com/user/repos?sort=updated&per_page=10', {
+                // Fetch Repos (More to get better stats)
+                const repoRes = await fetch('https://api.github.com/user/repos?sort=updated&per_page=30', {
                     headers: { Authorization: `Bearer ${session.provider_token}` }
                 })
-                if (repoRes.ok) setRepos(await repoRes.json())
+
+                if (repoRes.ok) {
+                    const reposData: Repo[] = await repoRes.json()
+                    setRepos(reposData)
+
+                    // Calculate Work Time Distribution (Mon-Sun)
+                    const dist = [0, 0, 0, 0, 0, 0, 0] // Sun=0, Mon=1...
+                    const now = new Date()
+                    let recentActivityCount = 0
+
+                    reposData.forEach(repo => {
+                        const updateDate = new Date(repo.updated_at)
+                        // Only count updates in last 30 days for relevant "Work Time" stats
+                        const daysDiff = (now.getTime() - updateDate.getTime()) / (1000 * 3600 * 24)
+
+                        if (daysDiff < 30) {
+                            const dayIndex = getDay(updateDate) // 0-6 (Sun-Sat)
+                            // Map to Mon-Sun (0-6) where Mon=0
+                            const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1
+                            dist[mappedIndex]++
+                            recentActivityCount++
+                        }
+                    })
+
+                    // Normalize for visual bars (percentage of max)
+                    const maxVal = Math.max(...dist, 1)
+                    const visualDist = dist.map(v => (v / maxVal) * 100)
+                    setWorkTimeDistribution(visualDist)
+
+                    // Calculate Code Frequency
+                    if (recentActivityCount > 10) setCodeFrequency('High')
+                    else if (recentActivityCount > 3) setCodeFrequency('Medium')
+                    else setCodeFrequency('Low')
+                }
             }
             setLoading(false)
         }
@@ -146,10 +181,9 @@ export default function ProfilePage() {
                             <p className="text-xs text-gray-400 animate-pulse">Live</p>
                         </div>
                         <div className="flex-1 flex items-end justify-between gap-2 h-full">
-                            {/* Mock bars for visual consistency, could be wired to actual commit days later */}
-                            {[30, 45, 35, 60, 50, 75, 65].map((h, i) => (
-                                <div key={i} className="w-full bg-white/20 relative group" style={{ height: `${h}%` }}>
-                                    <div className="absolute bottom-0 w-full bg-white h-full hover:bg-gray-300 transition-all"></div>
+                            {workTimeDistribution.map((h, i) => (
+                                <div key={i} className="w-full bg-white/20 relative group" style={{ height: `${Math.max(h, 5)}%` }}>
+                                    <div className="absolute bottom-0 w-full bg-white h-full hover:bg-gray-300 transition-all" title={`${Math.round(h)}% Activity`}></div>
                                 </div>
                             ))}
                         </div>
@@ -192,11 +226,11 @@ export default function ProfilePage() {
                             <p className="text-sm font-bold tracking-widest opacity-70">Coding_Frequency</p>
                             <span className="material-symbols-outlined group-hover:text-black text-white transition-colors">speed</span>
                         </div>
-                        <p className="text-4xl font-bold tracking-tight">High</p>
+                        <p className="text-4xl font-bold tracking-tight">{codeFrequency}</p>
                         <div className="flex gap-1 mt-auto">
-                            <div className="h-1 flex-1 bg-white group-hover:bg-black"></div>
-                            <div className="h-1 flex-1 bg-white group-hover:bg-black"></div>
-                            <div className="h-1 flex-1 bg-white group-hover:bg-black"></div>
+                            <div className={`h-1 flex-1 bg-white ${codeFrequency === 'Low' || codeFrequency === 'Medium' || codeFrequency === 'High' ? 'opacity-100' : 'opacity-20'} group-hover:bg-black`}></div>
+                            <div className={`h-1 flex-1 bg-white ${codeFrequency === 'Medium' || codeFrequency === 'High' ? 'opacity-100' : 'opacity-20'} group-hover:bg-black`}></div>
+                            <div className={`h-1 flex-1 bg-white ${codeFrequency === 'High' ? 'opacity-100' : 'opacity-20'} group-hover:bg-black`}></div>
                             <div className="h-1 flex-1 bg-gray-800 group-hover:bg-black/20"></div>
                         </div>
                     </div>
