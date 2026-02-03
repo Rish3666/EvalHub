@@ -45,6 +45,7 @@ export default function CommunityChatPage() {
     const [community, setCommunity] = useState<Community | null>(null)
     const [members, setMembers] = useState<Member[]>([])
     const [currentUser, setCurrentUser] = useState<any>(null)
+    const [uploading, setUploading] = useState(false)
 
     // Mention state
     const [mentionSearch, setMentionSearch] = useState('')
@@ -53,6 +54,7 @@ export default function CommunityChatPage() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const supabase = createClient()
 
     const scrollToBottom = () => {
@@ -122,6 +124,42 @@ export default function CommunityChatPage() {
         }
     }
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        if (!file.type.startsWith('image/')) {
+            toast.error("Please upload an image file")
+            return
+        }
+
+        try {
+            setUploading(true)
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random()}.${fileExt}`
+            const filePath = `${communityId}/${fileName}`
+
+            const { error: uploadError, data } = await supabase.storage
+                .from('communities')
+                .upload(filePath, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('communities')
+                .getPublicUrl(filePath)
+
+            // Auto-send message with image
+            await handleSendMessage(null, [publicUrl])
+            toast.success("Image uploaded")
+        } catch (error: any) {
+            toast.error(`Upload failed: ${error.message}`)
+        } finally {
+            setUploading(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+    }
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value
         const cursorPosition = e.target.selectionStart || 0
@@ -174,9 +212,9 @@ export default function CommunityChatPage() {
         }
     }
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!newMessage.trim()) return
+    const handleSendMessage = async (e: React.FormEvent | null, attachments: string[] = []) => {
+        if (e) e.preventDefault()
+        if (!newMessage.trim() && attachments.length === 0) return
 
         const content = newMessage
         setNewMessage('')
@@ -188,8 +226,9 @@ export default function CommunityChatPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    content,
-                    reply_to_id: prevReplyTo?.id
+                    content: content || (attachments.length > 0 ? '' : ''),
+                    reply_to_id: prevReplyTo?.id,
+                    attachments: attachments
                 })
             })
 
@@ -325,8 +364,26 @@ export default function CommunityChatPage() {
                                         </div>
                                     )}
 
-                                    <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap selection:bg-white selection:text-black">
-                                        {renderContent(msg.content)}
+                                    <div className="space-y-4">
+                                        {msg.content && (
+                                            <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap selection:bg-white selection:text-black">
+                                                {renderContent(msg.content)}
+                                            </div>
+                                        )}
+                                        {msg.attachments && msg.attachments.length > 0 && (
+                                            <div className="flex flex-wrap gap-4 mt-2">
+                                                {msg.attachments.map((url, i) => (
+                                                    <div key={i} className="max-w-md border-2 border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] bg-white/5 p-1">
+                                                        <img
+                                                            src={url}
+                                                            alt="Attachment"
+                                                            className="max-h-96 object-contain cursor-zoom-in"
+                                                            onClick={() => window.open(url, '_blank')}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -389,7 +446,19 @@ export default function CommunityChatPage() {
 
                 <form onSubmit={handleSendMessage} className="relative group">
                     <div className="flex items-end gap-3 bg-white/5 border-2 border-white/20 p-4 focus-within:border-white focus-within:bg-black transition-all">
-                        <button type="button" className="p-2 border border-white/10 text-gray-500 hover:text-white hover:border-white transition-all">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleImageUpload}
+                            accept="image/*"
+                            className="hidden"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading}
+                            className={`p-2 border border-white/10 text-gray-500 hover:text-white hover:border-white transition-all ${uploading ? 'animate-pulse' : ''}`}
+                        >
                             <ImageIcon className="w-5 h-5" />
                         </button>
 
@@ -400,32 +469,32 @@ export default function CommunityChatPage() {
                                 value={newMessage}
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
-                                placeholder={replyTo ? 'Transmission_Linked...' : 'BROADCAST_SIGNAL...'}
+                                placeholder={uploading ? 'UPLOADING_DATA...' : replyTo ? 'Transmission_Linked...' : 'BROADCAST_SIGNAL...'}
                                 className="w-full bg-transparent border-none text-white focus:outline-none py-2 px-1 font-mono text-sm placeholder:text-gray-800 tracking-widest uppercase"
                             />
                         </div>
 
                         <button
                             type="submit"
-                            disabled={!newMessage.trim()}
+                            disabled={(!newMessage.trim() && !uploading) || uploading}
                             className="bg-white text-black p-3 hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-500 transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] active:shadow-none active:translate-x-1 active:translate-y-1"
                         >
                             <Send className="w-5 h-5" />
                         </button>
                     </div>
-                </form>
 
-                <div className="mt-4 flex justify-between items-center text-[9px] font-bold tracking-[0.2em] text-gray-500 uppercase">
-                    <div className="flex gap-4">
-                        <span className="flex items-center gap-1"><Hash className="w-3 h-3" /> MARKDOWN_READY</span>
-                        <span className="flex items-center gap-1"><AtSign className="w-3 h-3" /> MENTIONS_ON</span>
+                    <div className="mt-4 flex justify-between items-center text-[9px] font-bold tracking-[0.2em] text-gray-500 uppercase">
+                        <div className="flex gap-4">
+                            <span className="flex items-center gap-1"><Hash className="w-3 h-3" /> MARKDOWN_READY</span>
+                            <span className="flex items-center gap-1"><AtSign className="w-3 h-3" /> MENTIONS_ON</span>
+                        </div>
+                        <div className="flex gap-4">
+                            <span>CTRL + ENTER TO SEND</span>
+                            <span className="text-white/30">|</span>
+                            <span>V.1.0_PROTOTYPE</span>
+                        </div>
                     </div>
-                    <div className="flex gap-4">
-                        <span>CTRL + ENTER TO SEND</span>
-                        <span className="text-white/30">|</span>
-                        <span>V.1.0_PROTOTYPE</span>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
     )
