@@ -21,6 +21,10 @@ DROP POLICY IF EXISTS "Enable view for all users" ON public.projects;
 DROP POLICY IF EXISTS "projects_insert_policy" ON public.projects;
 DROP POLICY IF EXISTS "projects_select_policy" ON public.projects;
 DROP POLICY IF EXISTS "Enable insert for all" ON public.projects;
+DROP POLICY IF EXISTS "allow_all_insert" ON public.projects;
+DROP POLICY IF EXISTS "allow_all_select" ON public.projects;
+DROP POLICY IF EXISTS "allow_all_update" ON public.projects;
+DROP POLICY IF EXISTS "allow_all_delete" ON public.projects;
 
 -- Create absolute permissive policies for projects
 CREATE POLICY "allow_all_insert" ON public.projects FOR INSERT WITH CHECK (true);

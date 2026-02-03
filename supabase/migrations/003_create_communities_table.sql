@@ -31,5 +31,6 @@ CREATE POLICY "Users can delete their own communities." ON public.communities
   FOR DELETE USING (auth.uid() = creator_id);
 
 -- Trigger for updated_at timestamp
+DROP TRIGGER IF EXISTS update_communities_updated_at ON public.communities;
 CREATE TRIGGER update_communities_updated_at BEFORE UPDATE ON public.communities
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

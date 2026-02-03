@@ -197,11 +197,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers for updated_at
+DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_projects_updated_at ON public.projects;
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON public.projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_scorecards_updated_at ON public.scorecards;
 CREATE TRIGGER update_scorecards_updated_at BEFORE UPDATE ON public.scorecards
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -62,5 +62,6 @@ DROP POLICY IF EXISTS "Recipients can respond to friend requests" ON public.frie
 CREATE POLICY "Recipients can respond to friend requests" ON public.friend_requests
   FOR UPDATE USING (auth.uid() = addressee_id);
 
+DROP TRIGGER IF EXISTS update_friend_requests_updated_at ON public.friend_requests;
 CREATE TRIGGER update_friend_requests_updated_at BEFORE UPDATE ON public.friend_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
