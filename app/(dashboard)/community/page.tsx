@@ -341,38 +341,6 @@ export default function CommunityPage() {
                 </div>
             </div>
 
-            {/* Top Project Teams */}
-            <div className="w-full border border-white p-6 lg:p-8 mt-4 bg-black">
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-sm">hub</span>
-                        <h3 className="text-sm font-bold tracking-widest">Top_Project_Teams</h3>
-                    </div>
-                    <div className="text-[10px] text-gray-400 tracking-widest">Weekly_Metrics</div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {/* Team 1 */}
-                    <div className="group cursor-pointer">
-                        <div className="flex justify-between items-end border-b border-gray-800 pb-2 group-hover:border-white transition-colors">
-                            <h4 className="font-bold text-base tracking-wider">Open_Core</h4>
-                            <span className="text-xs text-gray-400 font-mono">Mbrs: 24</span>
-                        </div>
-                        <div className="w-full bg-gray-900 h-1 mt-2">
-                            <div className="bg-white h-full w-[85%] group-hover:shadow-[0_0_10px_white] transition-all duration-500"></div>
-                        </div>
-                    </div>
-                    {/* Team 2 */}
-                    <div className="group cursor-pointer">
-                        <div className="flex justify-between items-end border-b border-gray-800 pb-2 group-hover:border-white transition-colors">
-                            <h4 className="font-bold text-base tracking-wider">Data_Mesh</h4>
-                            <span className="text-xs text-gray-400 font-mono">Mbrs: 18</span>
-                        </div>
-                        <div className="w-full bg-gray-900 h-1 mt-2">
-                            <div className="bg-white h-full w-[65%] group-hover:shadow-[0_0_10px_white] transition-all duration-500"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <div className="w-full pt-4 border-t border-dashed border-white/30 flex justify-between text-[10px] md:text-xs text-gray-500 tracking-widest">
                 <span>EvalHub_ OS v2.0.4</span>
