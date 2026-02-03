@@ -115,7 +115,7 @@ export default function ProfilePage() {
                         <p className="text-gray-400 text-sm tracking-widest font-mono">&gt; System Status: Online</p>
                         <button
                             onClick={handleLogout}
-                            className="text-[10px] text-red-500 border border-red-500/30 px-2 py-0.5 hover:bg-red-500 hover:text-white transition-all uppercase font-bold tracking-tighter"
+                            className="text-xs text-red-500 border border-red-500/50 px-3 py-1.5 hover:bg-red-500 hover:text-white transition-all uppercase font-bold tracking-widest bg-red-500/5"
                         >
                             Terminate_Session [Logout]
                         </button>
