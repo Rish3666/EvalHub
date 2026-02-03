@@ -24,6 +24,8 @@ export default function CommunityPage() {
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true)
     const [groups, setGroups] = useState<Community[]>([]) // Added groups state
     const [isLoading, setIsLoading] = useState(true) // Added isLoading for communities
+    const [companies, setCompanies] = useState<any[]>([])
+    const [isLoadingCompanies, setIsLoadingCompanies] = useState(true)
     const [newGroupName, setNewGroupName] = useState('')
     const [newGroupDesc, setNewGroupDesc] = useState('')
     const [newGroupTags, setNewGroupTags] = useState('')
@@ -35,6 +37,7 @@ export default function CommunityPage() {
         fetchCommunities()
         fetchFriends()
         fetchGitHubSuggestions()
+        fetchCompaniesData()
     }, [])
 
     async function fetchFriends() {
@@ -84,6 +87,22 @@ export default function CommunityPage() {
             console.error("Failed to fetch communities", error)
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    async function fetchCompaniesData() {
+        try {
+            const { data: companiesData, error } = await supabase
+                .from('companies')
+                .select('*')
+                .order('name')
+
+            if (error) throw error
+            setCompanies(companiesData || [])
+        } catch (error) {
+            console.error("Failed to fetch companies", error)
+        } finally {
+            setIsLoadingCompanies(false)
         }
     }
 
@@ -214,8 +233,46 @@ export default function CommunityPage() {
                         )}
                     </div>
 
-                    {/* Discover / GitHub Network Section */}
+                    {/* Companies / Partnership Section */}
                     <div className="flex items-center justify-between mt-8 mb-2 border-b border-white/20 pb-2">
+                        <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">business</span>
+                            <h3 className="text-sm font-bold tracking-widest uppercase">Target_Nodes (Companies)</h3>
+                        </div>
+                        <div className="text-[10px] text-gray-400 tracking-widest">Compatibility_Check</div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+                        {isLoadingCompanies ? (
+                            <div className="col-span-3 text-center py-10 text-gray-500 font-mono animate-pulse">Scanning targets...</div>
+                        ) : companies.length === 0 ? (
+                            <div className="col-span-3 text-center py-10 text-gray-500 font-mono border border-dashed border-gray-800 p-6">No target nodes found.</div>
+                        ) : (
+                            companies.map((company) => (
+                                <div key={company.id} className="border border-white p-6 bg-black flex flex-col justify-between h-full hover:border-blue-500 transition-colors group">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="h-10 w-10 border border-white flex items-center justify-center overflow-hidden bg-white">
+                                            <img src={company.logo_url} alt={company.name} className="w-full h-full object-cover" />
+                                        </div>
+                                        <span className="material-symbols-outlined text-blue-500 text-sm opacity-50 group-hover:opacity-100 transition-opacity">verified</span>
+                                    </div>
+                                    <div className="mb-6">
+                                        <h4 className="text-base font-bold tracking-wider truncate uppercase">{company.name}</h4>
+                                        <p className="text-[10px] text-gray-400 font-mono mt-1 line-clamp-2">{company.description}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => router.push(`/company/${company.id}`)}
+                                        className="w-full bg-blue-600 text-white py-2 text-[10px] font-bold tracking-widest hover:bg-blue-500 transition-colors uppercase"
+                                    >
+                                        Run_Compatibility_
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Discover / GitHub Network Section */}
+                    <div className="flex items-center justify-between mb-2 border-b border-white/20 pb-2">
                         <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-sm">public</span>
                             <h3 className="text-sm font-bold tracking-widest uppercase">Discover_Network</h3>
