@@ -16,6 +16,11 @@ interface AnalysisResult {
         strengths: string[];
         techAreas: string[];
         architectureNotes: string;
+        qualityScore: number;
+        adaptationScore: number;
+        implementationEstimate: string;
+        difficulty: "Easy" | "Medium" | "Hard";
+        concerns: string[];
     };
     questions: Array<{
         id: number;
@@ -47,9 +52,14 @@ export async function analyzeREADME(
                                 complexity: { type: SchemaType.STRING },
                                 strengths: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
                                 techAreas: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-                                architectureNotes: { type: SchemaType.STRING }
+                                architectureNotes: { type: SchemaType.STRING },
+                                qualityScore: { type: SchemaType.NUMBER },
+                                adaptationScore: { type: SchemaType.NUMBER },
+                                implementationEstimate: { type: SchemaType.STRING },
+                                difficulty: { type: SchemaType.STRING },
+                                concerns: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
                             },
-                            required: ["complexity", "strengths", "techAreas", "architectureNotes"]
+                            required: ["complexity", "strengths", "techAreas", "architectureNotes", "qualityScore", "adaptationScore", "implementationEstimate", "difficulty", "concerns"]
                         },
                         questions: {
                             type: SchemaType.ARRAY,
@@ -89,6 +99,10 @@ CRITICAL TASK:
    - Technical depth demonstrated
    - Problem-solving approach
    - Code organization hints
+   - Quality Score (0-100) based on documentation and perceived structure
+   - Adaptation Score (0-100) based on modularity and ease of use
+   - Implementation Estimate (e.g. "2-4 weeks", "4-8 weeks")
+   - Implementation Concerns (Specific technical risks or missing pieces)
 
 2. Generate EXACTLY 5 questions that:
    - Are SPECIFIC to THIS project (not generic like "Why did you use React?")
@@ -387,6 +401,11 @@ export async function analyzeREADMEWithFallback(
                 strengths: ["Well-structured project", "Clear documentation"],
                 techAreas: projectData.techStack,
                 architectureNotes: "Unable to analyze - using default questions",
+                qualityScore: 50,
+                adaptationScore: 50,
+                implementationEstimate: "2-4 weeks",
+                difficulty: "Medium",
+                concerns: ["Limited README analysis available"],
             },
             questions: getDefaultQuestions(projectData.techStack),
         };

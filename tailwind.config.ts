@@ -18,12 +18,19 @@ export default {
             },
         },
         extend: {
+            fontFamily: {
+                sans: ["var(--font-sans)", "Inter", "sans-serif"],
+                mono: ["var(--font-mono)", "JetBrains Mono", "monospace"],
+                display: ["var(--font-display)", "Space Grotesk", "sans-serif"],
+            },
             colors: {
                 border: "hsl(var(--border))",
                 input: "hsl(var(--input))",
                 ring: "hsl(var(--ring))",
                 background: "hsl(var(--background))",
                 foreground: "hsl(var(--foreground))",
+                "background-dark": "#000000",
+                "background-light": "#f7f7f7",
                 primary: {
                     DEFAULT: "hsl(var(--primary))",
                     foreground: "hsl(var(--primary-foreground))",
@@ -72,6 +79,7 @@ export default {
                 "accordion-down": "accordion-down 0.2s ease-out",
                 "accordion-up": "accordion-up 0.2s ease-out",
             },
+            // Added responsive breakpoints if needed, though Tailwind defaults are usually good.
         },
     },
     plugins: [require("tailwindcss-animate")],

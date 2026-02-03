@@ -9,24 +9,19 @@ export async function POST(
         const { id } = await params;
         const supabase = await createClient();
 
-        // Authenticate user
+        // Authenticate user (optional)
         const {
             data: { user },
-            error: authError,
         } = await supabase.auth.getUser();
 
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Verify project ownership
+        // Verify project ownership if project has an owner
         const { data: project } = await supabase
             .from('projects')
             .select('user_id')
             .eq('id', id)
             .single();
 
-        if (!project || project.user_id !== user.id) {
+        if (project && project.user_id && project.user_id !== user?.id) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 

@@ -1,93 +1,82 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Github, Sparkles, Target, Share2, Image as ImageIcon, List, Smile, Calendar, MapPin } from "lucide-react";
+'use client'
 
-export default function HomePage() {
+import { motion } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import Spline from '@splinetool/react-spline'
+import { Github } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+export default function LandingPage() {
+    const supabase = createClient()
+
+    const handleLogin = async () => {
+        await supabase.auth.signInWithOAuth({
+            provider: 'github',
+            options: {
+                redirectTo: `${window.location.origin}/auth/callback`,
+            }
+        })
+    }
+
     return (
-        <div className="flex flex-col">
-            {/* Page Header */}
-            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md px-4 py-3 border-b border-border/50">
-                <h1 className="text-xl font-bold">Home</h1>
+        <div className="bg-black text-white font-sans overflow-hidden min-h-screen relative flex flex-col items-center justify-center">
+
+            {/* Spline Background - Full Screen for seamless integration */}
+            <div className="absolute inset-0 z-0 flex items-center justify-center">
+                <Spline
+                    className="w-full h-full scale-110" // Slight scale to ensure coverage and center focus
+                    scene="https://prod.spline.design/ZzB10jpkMgJmsUX7/scene.splinecode"
+                />
             </div>
 
-            {/* "Post" / Start Analysis Section */}
-            <div className="p-4 border-b border-border/50 flex gap-4">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border shrink-0 mt-1">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 space-y-4">
-                    <Link href="/new-project" className="block">
-                        <div className="text-xl text-muted-foreground py-2 cursor-pointer hover:text-foreground transition-colors">
-                            What&apos;s your next project? Start an analysis...
-                        </div>
-                    </Link>
-                    <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                        <div className="flex gap-1 text-primary">
-                            <div className="p-2 hover:bg-primary/10 rounded-full cursor-pointer transition-colors"><ImageIcon className="h-5 w-5" /></div>
-                            <div className="p-2 hover:bg-primary/10 rounded-full cursor-pointer transition-colors"><List className="h-5 w-5" /></div>
-                            <div className="p-2 hover:bg-primary/10 rounded-full cursor-pointer transition-colors"><Smile className="h-5 w-5" /></div>
-                            <div className="p-2 hover:bg-primary/10 rounded-full cursor-pointer transition-colors"><Calendar className="h-5 w-5" /></div>
-                            <div className="p-2 hover:bg-primary/10 rounded-full cursor-pointer transition-colors opacity-50 cursor-not-allowed"><MapPin className="h-5 w-5" /></div>
-                        </div>
-                        <Button size="sm" className="font-bold px-4" asChild>
-                            <Link href="/new-project">Analyze</Link>
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            {/* Content Overlay */}
+            <main className="relative z-10 flex flex-col items-center text-center px-6 max-w-4xl mx-auto space-y-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="space-y-2"
+                >
+                    <h1 className="font-display text-7xl md:text-8xl lg:text-9xl font-bold tracking-tighter text-white uppercase selection:bg-white selection:text-black drop-shadow-2xl">
+                        EVALHUB
+                    </h1>
+                    <p className="text-lg md:text-xl font-light tracking-widest text-white/80 max-w-2xl mx-auto uppercase selection:bg-white selection:text-black drop-shadow-md">
+                        The Proof-of-Work Layer for Developers.
+                    </p>
+                </motion.div>
 
-            {/* Featured Section (Hero-like but feed-style) */}
-            <div className="divide-y divide-border/50">
-                <div className="p-4 hover:bg-muted/10 transition-colors cursor-pointer group">
-                    <div className="flex gap-4">
-                        <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border shrink-0">
-                            <Target className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-1">
-                                <span className="font-bold">EvalHub</span>
-                                <span className="text-muted-foreground text-sm">@evalhub · Just now</span>
-                            </div>
-                            <p className="text-base text-foreground leading-normal">
-                                Welcome to the new EvalHub. Stop telling recruiters what you can do. Start showing them with AI-verified skill scorecards. 🚀
-                            </p>
-                            <div className="mt-3 border rounded-2xl overflow-hidden bg-muted/20 hover:bg-muted/30 transition-colors">
-                                <div className="p-6 space-y-4">
-                                    <h3 className="text-2xl font-black italic tracking-tighter uppercase">AI Deep Dive Assessment</h3>
-                                    <p className="text-muted-foreground leading-tight">Our AI analyzes your real code and README to understand the technical depth of your work.</p>
-                                    <Button variant="outline" className="rounded-full font-bold group-hover:bg-background">Try it out</Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4, duration: 0.5 }}
+                    className="flex flex-col items-center gap-6 w-full max-w-xs"
+                >
+                    <Button
+                        onClick={handleLogin}
+                        className="flex items-center justify-center gap-3 bg-white text-black hover:bg-white/90 px-6 py-6 w-full font-bold text-sm tracking-widest uppercase transition-all duration-200 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] cursor-pointer"
+                    >
+                        <Github className="w-5 h-5" />
+                        LOGIN WITH GITHUB
+                    </Button>
 
-                <div className="p-4 hover:bg-muted/10 transition-colors cursor-pointer">
-                    <div className="flex gap-4">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border shrink-0">
-                            <Share2 className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex items-center gap-1">
-                                <span className="font-bold">Verified Proof</span>
-                                <span className="text-muted-foreground text-sm">@proof · 2h</span>
-                            </div>
-                            <p className="text-base text-foreground leading-normal">
-                                Every analysis generates a unique, shareable URL with dynamic OG images. Perfect for your LinkedIn or Twitter bio.
-                            </p>
-                        </div>
+                    <div className="flex flex-col items-center space-y-2">
+                        <p className="text-white/60 text-xs tracking-widest uppercase font-mono">
+                            System Status: <span className="text-green-400 animate-pulse">ONLINE</span>
+                        </p>
                     </div>
-                </div>
-            </div>
+                </motion.div>
+            </main>
 
-            {/* View on GitHub Button at bottom of feed */}
-            <div className="p-8 text-center bg-muted/5">
-                <Button variant="outline" size="lg" className="rounded-full px-8" asChild>
-                    <Link href="https://github.com/Rish3666/EvalHub" target="_blank">
-                        <Github className="mr-2 h-5 w-5" /> View Project on GitHub
-                    </Link>
-                </Button>
+            {/* Footer / Status Bar from design */}
+            <div className="absolute bottom-12 left-0 right-0 px-12 flex justify-between items-center z-10 pointer-events-none">
+                <div className="hidden md:block text-white/80">
+                    <span className="text-[9px] uppercase tracking-[0.6em] bg-black/50 px-2 py-1 backdrop-blur-sm">Protocol v1.0.0</span>
+                </div>
+                <div className="flex space-x-8 pointer-events-auto">
+                    <a className="text-[9px] uppercase tracking-[0.6em] text-white/40 hover:text-white transition-colors" href="#">Docs</a>
+                    <a className="text-[9px] uppercase tracking-[0.6em] text-white/40 hover:text-white transition-colors" href="#">Legal</a>
+                </div>
             </div>
         </div>
-    );
+    )
 }

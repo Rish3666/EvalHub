@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const response = await fetch(`https://api.github.com/search/users?q=${query}&per_page=5`, {
+        const response = await fetch(`https://api.github.com/search/users?q=${encodeURIComponent(query)}&per_page=5`, {
             headers: {
                 "Accept": "application/vnd.github.v3+json",
                 // "Authorization": `token ${process.env.GITHUB_TOKEN}` // Optional

@@ -90,9 +90,10 @@ export default async function PublicScorecardPage({
     return (
         <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
             <ScorecardDisplay
-                scorecard={scorecard}
+                scorecard={scorecard as any}
                 project={{
                     title: (scorecard.projects as any).title,
+                    description: (scorecard.projects as any).description,
                     author: (scorecard.projects as any).users,
                 }}
             />

@@ -1,0 +1,41 @@
+
+> evalhub@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1518.7ms
+  Running TypeScript ...
+  Collecting page data using 9 workers ...
+⚠ Using edge runtime on a page currently disables static generation for that page
+  Generating static pages using 9 workers (0/9) ...
+  Generating static pages using 9 workers (2/9) 
+  Generating static pages using 9 workers (4/9) 
+  Generating static pages using 9 workers (6/9) 
+✓ Generating static pages using 9 workers (9/9) in 115.4ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/github/repos
+├ ƒ /api/github/search-users
+├ ƒ /api/og/[shareToken]
+├ ƒ /api/projects/[id]/analyze
+├ ƒ /api/projects/[id]/answers
+├ ƒ /api/projects/[id]/questions
+├ ƒ /api/projects/[id]/scorecard
+├ ƒ /dashboard
+├ ○ /login
+├ ○ /new-project
+├ ƒ /project/[id]/analysis
+├ ƒ /project/[id]/scorecard
+├ ƒ /scorecard/[shareToken]
+└ ○ /signup
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

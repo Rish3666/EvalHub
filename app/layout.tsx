@@ -1,12 +1,20 @@
 // Build trigger: $(date)
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google"; // Added JetBrains_Mono and Space_Grotesk
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Sidebar } from "@/components/Sidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 
 const inter = Inter({ subsets: ["latin"] });
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-mono",
+});
+const spaceGrotesk = Space_Grotesk({
+    subsets: ["latin"],
+    variable: "--font-display",
+});
 
 export const metadata: Metadata = {
     title: "EvalHub - AI-Powered Developer Skill Analysis",
@@ -17,6 +25,22 @@ export const metadata: Metadata = {
         title: "EvalHub - AI-Powered Developer Skill Analysis",
         description: "Get AI-generated skill scorecards based on your projects",
         type: "website",
+        url: "https://evalhub.dev",
+        siteName: "EvalHub",
+        images: [
+            {
+                url: "https://evalhub.dev/og.png",
+                width: 1200,
+                height: 630,
+            },
+        ],
+        locale: "en_US",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "EvalHub - AI-Powered Developer Skill Analysis",
+        description: "Get AI-generated skill scorecards based on your projects",
+        images: ["https://evalhub.dev/og.png"],
     },
 };
 
@@ -27,23 +51,11 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning className="dark">
-            <body className={`${inter.className} min-h-screen bg-background`}>
-                <div className="container mx-auto flex justify-center">
-                    {/* Left Sidebar - Fixed positioning handled via classes if preferred, but flex container is fine for centering layout like X */}
-                    <aside className="hidden sm:flex flex-col border-r border-border/50 sticky top-0 h-screen w-fit xl:w-[275px]">
-                        <Sidebar />
-                    </aside>
-
-                    {/* Main Feed */}
-                    <main className="flex-1 max-w-[600px] border-r border-border/50 min-h-screen relative">
-                        {children}
-                    </main>
-
-                    {/* Right Sidebar - Trends and Search */}
-                    <aside className="hidden lg:block w-[350px] sticky top-0 h-screen ml-8">
-                        <RightSidebar />
-                    </aside>
-                </div>
+            <head>
+                <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+            </head>
+            <body className={`${inter.className} ${jetbrainsMono.variable} ${spaceGrotesk.variable} min-h-screen bg-background`}>
+                {children}
                 <Toaster />
             </body>
         </html>

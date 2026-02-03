@@ -14,8 +14,6 @@ export async function POST(
         const {
             data: { user },
         } = await supabase.auth.getUser();
-        if (!user)
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
         // Check if scorecard already exists
         const { data: existing } = await supabase
@@ -52,7 +50,7 @@ export async function POST(
             );
         }
 
-        if (project.user_id !== user.id) {
+        if (project.user_id && project.user_id !== user?.id) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -141,12 +139,12 @@ export async function GET(
             .select(
                 `
         *,
-        projects!inner(
+        projects(
           title,
           description,
           tech_stack,
           repo_url,
-          users!inner(full_name, avatar_url)
+          users(full_name, avatar_url)
         )
       `
             )

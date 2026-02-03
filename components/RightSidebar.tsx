@@ -1,71 +1,167 @@
-"use client";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+'use client'
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import { TrendingUp, PieChart } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+
+const trendingTechs = [
+    { name: 'Next.js', projectCount: 1240, growthPercent: 45 },
+    { name: 'Supabase', projectCount: 890, growthPercent: 32 },
+    { name: 'TailwindCSS', projectCount: 2100, growthPercent: 12 },
+]
+
+const userTechDistribution = [
+    { name: 'React', value: 40 },
+    { name: 'TypeScript', value: 30 },
+    { name: 'Node.js', value: 20 },
+    { name: 'Python', value: 10 },
+]
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']
+
+const suggestedDevelopers = [
+    { id: 1, name: 'Sarah Lee', projectsCount: 12, avatar: 'https://github.com/shadcn.png' },
+    { id: 2, name: 'Mike Ross', projectsCount: 8, avatar: 'https://github.com/shadcn.png' },
+]
+
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+        <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+            {`${(percent * 100).toFixed(0)}%`}
+        </text>
+    );
+};
 
 export function RightSidebar() {
     return (
-        <div className="hidden lg:flex flex-col h-screen h-sticky top-0 p-4 gap-4 w-full max-w-[350px]">
-            <div className="sticky top-2 z-10">
-                <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                    <Input
-                        placeholder="Search Projects"
-                        className="pl-12 bg-muted/50 border-none rounded-full focus-visible:ring-1 focus-visible:ring-primary focus-visible:bg-background h-11"
-                    />
-                </div>
-            </div>
+        <aside className="sticky top-0 h-screen w-80 p-4 space-y-4 overflow-y-auto hidden xl:block border-l border-border bg-background">
+            {/* Trending Tech Stacks */}
+            <Card className="overflow-hidden">
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                        Trending Tech Stacks
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {trendingTechs.map((tech, index) => (
+                        <motion.div
+                            key={tech.name}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="flex items-center justify-between group cursor-pointer hover:bg-accent p-2 rounded-lg transition-colors"
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold text-muted-foreground/50">
+                                    #{index + 1}
+                                </span>
+                                <div>
+                                    <p className="font-medium group-hover:text-primary transition-colors">
+                                        {tech.name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {tech.projectCount} projects
+                                    </p>
+                                </div>
+                            </div>
+                            <Badge variant="secondary" className="gap-1">
+                                <TrendingUp className="h-3 w-3" />
+                                {tech.growthPercent}%
+                            </Badge>
+                        </motion.div>
+                    ))}
 
-            <div className="bg-muted/30 rounded-2xl overflow-hidden border border-border/50 mt-2">
-                <h2 className="text-xl font-bold px-4 py-3">AI Insights</h2>
-                <div className="px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider italic">Trending Skill</p>
-                    <p className="font-bold text-base">Next.js 15 & Server Actions</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">3.2k projects analyzed</p>
-                </div>
-                <div className="px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider italic">Market Demand</p>
-                    <p className="font-bold text-base">GraphQL Expert Needed</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">High demand in SF startups</p>
-                </div>
-                <div className="px-4 py-3 hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider italic">Career Path</p>
-                    <p className="font-bold text-base">From Frontend to Fullstack</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">AI suggests adding Prisma</p>
-                </div>
-                <div className="px-4 py-3 text-primary hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50 text-sm">
-                    Show more
-                </div>
-            </div>
+                    <Button variant="ghost" className="w-full" size="sm">
+                        Show more
+                    </Button>
+                </CardContent>
+            </Card>
 
-            <div className="bg-muted/30 rounded-2xl overflow-hidden border border-border/50">
-                <h2 className="text-xl font-bold px-4 py-3">Top Scorers</h2>
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className="px-4 py-3 flex items-center gap-3 hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border shrink-0">
-                            <span className="text-sm font-bold text-primary">US</span>
-                        </div>
-                        <div className="flex flex-col flex-1 overflow-hidden text-sm">
-                            <span className="font-bold truncate">Dave Developer</span>
-                            <span className="text-muted-foreground truncate">@davedev</span>
-                        </div>
-                        <button className="bg-foreground text-background font-bold px-4 py-1.5 rounded-full text-xs hover:opacity-90 transition-opacity">
-                            Follow
-                        </button>
+            {/* Your Tech Stack Distribution (Pie Chart) */}
+            <Card className="overflow-hidden">
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <PieChart className="h-4 w-4 text-primary" />
+                        Your Tech Distribution
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {/* Pie Chart using Recharts */}
+                    <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RechartsPieChart>
+                                <Pie
+                                    data={userTechDistribution}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={renderCustomizedLabel}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {userTechDistribution.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip />
+                            </RechartsPieChart>
+                        </ResponsiveContainer>
                     </div>
-                ))}
-                <div className="px-4 py-3 text-primary hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50 text-sm">
-                    Show more
-                </div>
-            </div>
 
-            <div className="px-4 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <span className="hover:underline cursor-pointer">Terms of Service</span>
-                <span className="hover:underline cursor-pointer">Privacy Policy</span>
-                <span className="hover:underline cursor-pointer">Cookie Policy</span>
-                <span className="hover:underline cursor-pointer">Accessibility</span>
-                <span className="hover:underline cursor-pointer">Ads info</span>
-                <span className="hover:underline cursor-pointer">© 2026 EvalHub Corp.</span>
-            </div>
-        </div>
-    );
+                    {/* Legend */}
+                    <div className="mt-4 space-y-2">
+                        {userTechDistribution.map((tech, index) => (
+                            <div key={tech.name} className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        className="h-3 w-3 rounded-full"
+                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                    />
+                                    <span>{tech.name}</span>
+                                </div>
+                                <span className="font-medium">{tech.percentage}%</span>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Suggested Developers */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Who to Follow</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {suggestedDevelopers.map((dev) => (
+                        <div key={dev.id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src={dev.avatar} />
+                                    <AvatarFallback>{dev.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="text-sm font-medium">{dev.name}</p>
+                                    <p className="text-xs text-muted-foreground">{dev.projectsCount} projects</p>
+                                </div>
+                            </div>
+                            <Button size="sm" variant="outline">
+                                Follow
+                            </Button>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        </aside>
+    )
 }

@@ -11,17 +11,12 @@ export async function POST(
         const { id } = await params;
         const supabase = await createClient();
 
-        // Authenticate user
+        // Authenticate user (optional)
         const {
             data: { user },
-            error: authError,
         } = await supabase.auth.getUser();
 
-        if (authError || !user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        // Fetch project and verify ownership
+        // Fetch project
         const { data: project, error: projectError } = await supabase
             .from('projects')
             .select('*')
@@ -32,7 +27,8 @@ export async function POST(
             return NextResponse.json({ error: 'Project not found' }, { status: 404 });
         }
 
-        if (project.user_id !== user.id) {
+        // Verify ownership if project has an owner
+        if (project.user_id && project.user_id !== user?.id) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -54,7 +50,12 @@ export async function POST(
         }
 
         // Fetch README from GitHub
-        const readme = await fetchREADME(project.repo_url);
+        const [readme, metadata, languages] = await Promise.all([
+            fetchREADME(project.repo_url),
+            import('@/lib/utils/github').then(m => m.fetchRepoMetadata(project.repo_url)),
+            import('@/lib/utils/github').then(m => m.fetchRepoLanguages(project.repo_url))
+        ]);
+
         if (!readme) {
             return NextResponse.json(
                 {
@@ -80,7 +81,11 @@ export async function POST(
             .insert({
                 project_id: id,
                 readme_content: readme.slice(0, 15000), // Store first 15k chars
-                ai_analysis: analysis.analysis,
+                ai_analysis: {
+                    ...analysis.analysis,
+                    repoMetadata: metadata,
+                    languages: languages,
+                },
                 questions: analysis.questions,
             })
             .select()
@@ -100,7 +105,8 @@ export async function POST(
         console.error('Analysis error:', error);
         return NextResponse.json(
             {
-                error: 'AI analysis failed. Please try again or contact support.',
+                error: error instanceof Error ? error.message : 'AI analysis failed',
+                details: error,
             },
             { status: 500 }
         );

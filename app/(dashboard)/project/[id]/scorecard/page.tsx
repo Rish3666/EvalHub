@@ -1,22 +1,17 @@
 'use client';
 
-import { useEffect, useState, useCallback, use } from 'react';
+import { useEffect, useState, useCallback, use, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ScorecardDisplay } from '@/components/ScorecardDisplay';
 import { ShareButtons } from '@/components/ShareButtons';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function ScorecardPage({
-    params,
-}: {
-    params: Promise<{ id: string }>;
-}) {
-    const { id: projectIdFromParams } = use(params);
+function ScorecardContent({ projectIdFromParams }: { projectIdFromParams: string }) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
-    const [projectId, setProjectId] = useState<string>('');
+    const [projectId, setProjectId] = useState<string>(projectIdFromParams);
     const [scorecard, setScorecard] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -107,6 +102,7 @@ export default function ScorecardPage({
                 scorecard={scorecard}
                 project={{
                     title: scorecard.projects.title,
+                    description: scorecard.projects.description,
                     author: scorecard.projects.users,
                 }}
             />
@@ -120,5 +116,24 @@ export default function ScorecardPage({
                 />
             </div>
         </div>
+    );
+}
+
+export default function ScorecardPage({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}) {
+    const { id: projectIdFromParams } = use(params);
+
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Loading scorecard...</p>
+            </div>
+        }>
+            <ScorecardContent projectIdFromParams={projectIdFromParams} />
+        </Suspense>
     );
 }

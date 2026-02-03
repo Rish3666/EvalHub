@@ -32,6 +32,19 @@ export default function NewProjectPage() {
     const router = useRouter();
     const { toast } = useToast();
     const supabase = createClient();
+    const [authLoading, setAuthLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                setUser(session.user);
+            }
+            setAuthLoading(false);
+        };
+        checkUser();
+    }, [supabase.auth]);
 
     const [step, setStep] = useState(1); // 1: Username, 2: Repo Selection, 3: Details
     const [loading, setLoading] = useState(false);
@@ -122,14 +135,21 @@ export default function NewProjectPage() {
     };
 
     const handleSelectRepo = (repo: GitHubRepo) => {
-        setFormData({
-            ...formData,
-            title: repo.name.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" "),
+        // Construct project data directly
+        const projectData = {
+            title: repo.name.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" "),
             repo_url: repo.html_url,
             description: repo.description || "",
             tech_stack: repo.language || "",
-        });
-        setStep(3);
+            challenge: "",
+            solution: "",
+        };
+
+        // Update form data state for consistency (optional, but good for debugging)
+        setFormData(projectData);
+
+        // Directly trigger project creation/analysis
+        executeProjectCreation(projectData);
     };
 
     const handleChange = (
@@ -139,33 +159,23 @@ export default function NewProjectPage() {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const executeProjectCreation = async (dataToSubmit: typeof formData) => {
         setLoading(true);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-
-            if (!user) {
-                toast({
-                    title: "Authentication Required",
-                    description: "Please sign in to create a project.",
-                    variant: "destructive",
-                });
-                setLoading(false);
-                return;
-            }
+            const { data: { session } } = await supabase.auth.getSession();
+            const userId = session?.user?.id || null;
 
             const { data: project, error } = await supabase
                 .from("projects")
                 .insert({
-                    user_id: user.id,
-                    title: formData.title,
-                    repo_url: formData.repo_url,
-                    description: formData.description,
-                    tech_stack: formData.tech_stack.split(",").map(t => t.trim()).filter(Boolean),
-                    challenge: formData.challenge,
-                    solution: formData.solution,
+                    user_id: userId,
+                    title: dataToSubmit.title,
+                    repo_url: dataToSubmit.repo_url,
+                    description: dataToSubmit.description,
+                    tech_stack: dataToSubmit.tech_stack.split(",").map((t) => t.trim()).filter(Boolean),
+                    challenge: dataToSubmit.challenge,
+                    solution: dataToSubmit.solution,
                 })
                 .select()
                 .single();
@@ -187,15 +197,26 @@ export default function NewProjectPage() {
             router.push(`/project/${project.id}/analysis`);
         } catch (error: any) {
             console.error("Error creating project:", error);
+            console.dir(error);
+
             toast({
-                title: "Error",
-                description: error.message || "Something went wrong. Please try again.",
+                title: "Error Creating Project",
+                description: `${error.message || "Something went wrong."} (${error.code || "No code available"})`,
                 variant: "destructive",
             });
         } finally {
             setLoading(false);
         }
     };
+
+    if (authLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground font-medium italic">Verifying session...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col min-h-screen">
@@ -324,92 +345,6 @@ export default function NewProjectPage() {
                             ))}
                         </div>
                     </div>
-                )}
-
-                {step === 3 && (
-                    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="space-y-1">
-                            <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Almost Done</h2>
-                            <p className="text-muted-foreground">Verify the details and add your technical challenges.</p>
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="title" className="font-bold ml-1">Project Title</Label>
-                                <Input
-                                    id="title"
-                                    name="title"
-                                    required
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    className="bg-muted/30 border-none h-12"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="tech_stack" className="font-bold ml-1">Key Technologies</Label>
-                                <Input
-                                    id="tech_stack"
-                                    name="tech_stack"
-                                    placeholder="Next.js, TypeScript, Supabase, Tailwind"
-                                    required
-                                    value={formData.tech_stack}
-                                    onChange={handleChange}
-                                    className="bg-muted/30 border-none h-12"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="description" className="font-bold ml-1">Description</Label>
-                                <Textarea
-                                    id="description"
-                                    name="description"
-                                    required
-                                    className="min-h-[100px] bg-muted/30 border-none rounded-2xl p-4 resize-none"
-                                    value={formData.description}
-                                    onChange={handleChange}
-                                />
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="challenge" className="font-bold ml-1 text-primary italic">Deep Dive: The Challenge</Label>
-                                    <Textarea
-                                        id="challenge"
-                                        name="challenge"
-                                        placeholder="What was the hardest part to build? (Helps AI evaluate depth)"
-                                        className="min-h-[120px] bg-muted/30 border-none rounded-2xl p-4 resize-none"
-                                        value={formData.challenge}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="solution" className="font-bold ml-1 text-primary italic">Deep Dive: Your Solution</Label>
-                                    <Textarea
-                                        id="solution"
-                                        name="solution"
-                                        placeholder="Describe your technical implementation..."
-                                        className="min-h-[120px] bg-muted/30 border-none rounded-2xl p-4 resize-none"
-                                        value={formData.solution}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-4 pb-12">
-                            <Button type="submit" size="lg" disabled={loading} className="rounded-full px-12 font-bold h-12">
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                        Launching...
-                                    </>
-                                ) : (
-                                    "Launch AI Analysis →"
-                                )}
-                            </Button>
-                        </div>
-                    </form>
                 )}
             </div>
         </div>

@@ -10,7 +10,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 203 89% 53%; /* X Blue */
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -22,19 +22,19 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 203 89% 53%;
-    --radius: 9999px; /* Fully rounded by default for buttons */
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
   }
 
   .dark {
-    --background: 0 0% 0%; /* True Black */
+    --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-    --card: 0 0% 0%;
+    --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
-    --popover: 0 0% 0%;
+    --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%; /* White text on black for primary buttons in dark mode often */
-    --primary-foreground: 0 0% 0%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
@@ -45,7 +45,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 210 40% 98%;
+    --ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -53,6 +53,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -64,4 +65,21 @@
     border-left-width: 1px;
     border-right-width: 1px;
   }
+}
+
+/* Custom Scrollbar for Terminal Theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ffffff;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #cccccc;
 }
