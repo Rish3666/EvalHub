@@ -27,7 +27,7 @@ type FilterType = 'friends' | 'followers' | 'both';
 export default function FeedPage() {
     const [feedItems, setFeedItems] = useState<FeedItem[]>([])
     const [loading, setLoading] = useState(true)
-    const [filter, setFilter] = useState<FilterType>('friends')
+    const [filter, setFilter] = useState<FilterType>('both')
     const supabase = createClient()
 
     useEffect(() => {
