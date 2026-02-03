@@ -107,7 +107,6 @@ export default function FeedPage() {
                         uniqueUsers = Array.from(new Map(combined.map((u: any) => [u.login, u])).values());
                     }
 
-                    console.log(`Feed Fetch [${filter}]:`, { userCount: uniqueUsers.length, users: uniqueUsers.map(u => u.login) });
 
                     if (!ismounted) return;
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -49,8 +49,9 @@ const MOCK_PROJECT = {
     }
 }
 
-export default function ProjectDetailPage({ params }: { params: { id: string } }) {
-    // In a real app, fetch project by params.id
+export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params)
+    // In a real app, fetch project by id
     const project = MOCK_PROJECT
 
     return (

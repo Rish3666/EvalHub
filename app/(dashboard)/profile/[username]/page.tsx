@@ -77,7 +77,8 @@ const MOCK_USER = {
     ]
 }
 
-export default function ProfilePage({ params }: { params: { username: string } }) {
+export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
+    const { username } = React.use(params)
     const supabase = createClient()
     const { toast } = useToast()
     const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null)
@@ -111,7 +112,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
             const { data: publicProfile } = await supabase
                 .from('public_profiles')
                 .select('id, username, full_name, avatar_url, bio, location, github_username, created_at')
-                .eq('username', params.username)
+                .eq('username', username)
                 .maybeSingle()
 
             if (publicProfile) {
@@ -125,7 +126,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
                     .from('users')
                     .select('id, username, full_name, avatar_url, bio, location, github_username, created_at')
                     .eq('id', user.id)
-                    .eq('username', params.username)
+                    .eq('username', username)
                     .maybeSingle()
 
                 if (privateProfile) {
@@ -142,7 +143,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
         return () => {
             isMounted = false
         }
-    }, [params.username, supabase])
+    }, [username, supabase])
 
     useEffect(() => {
         const loadFriendRequest = async () => {

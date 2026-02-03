@@ -3,9 +3,10 @@ import { NextResponse } from 'next/server'
 
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         const supabase = await createClient()
         const { data: { session } } = await supabase.auth.getSession()
 
@@ -18,7 +19,7 @@ export async function POST(
             .from('community_follows')
             .select('id')
             .eq('user_id', session.user.id)
-            .eq('community_id', params.id)
+            .eq('community_id', id)
             .maybeSingle()
 
         if (existing) {
@@ -30,7 +31,7 @@ export async function POST(
             .from('community_follows')
             .insert({
                 user_id: session.user.id,
-                community_id: params.id
+                community_id: id
             })
 
         if (error) {
@@ -46,9 +47,10 @@ export async function POST(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params
         const supabase = await createClient()
         const { data: { session } } = await supabase.auth.getSession()
 
@@ -61,7 +63,7 @@ export async function DELETE(
             .from('community_follows')
             .delete()
             .eq('user_id', session.user.id)
-            .eq('community_id', params.id)
+            .eq('community_id', id)
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 })
