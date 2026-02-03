@@ -21,14 +21,21 @@ export async function POST(request: Request) {
         const { data: existing, error: checkError } = await supabase
             .from('friend_requests')
             .select('*')
-            .or(`and(requester_id.eq.${requesterId},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${requesterId})`)
-            .single()
+            .or(`requester_id.eq.${requesterId},addressee_id.eq.${requesterId}`)
+            .or(`addressee_id.eq.${targetUserId},requester_id.eq.${targetUserId}`)
+            .maybeSingle()
+
+        if (checkError) {
+            console.error("Check existing request error:", checkError)
+        }
 
         if (existing) {
+            console.log("Friend request already exists:", existing)
             return NextResponse.json({ error: 'Request already exists or you are already friends' }, { status: 400 })
         }
 
         // Create new request
+        console.log("Inserting new friend request:", { requester_id: requesterId, addressee_id: targetUserId })
         const { error: insertError } = await supabase
             .from('friend_requests')
             .insert({

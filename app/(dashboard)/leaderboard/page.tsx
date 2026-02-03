@@ -67,9 +67,8 @@ export default function LeaderboardPage() {
                             // Algorithm:
                             // Base Score = (Public Repos * 2) + (Followers * 0.5)
                             // We normalize this somewhat but keep it uncapped for "Rank"
-                            // For the percentage display, we cap at 100.
-
-                            const rawScore = (f.public_repos * 2) + (f.followers * 0.5) + (f.public_gists * 1);
+                            const hasRepos = f.public_repos > 0;
+                            const rawScore = hasRepos ? (f.public_repos * 2) + (f.followers * 0.5) + (f.public_gists * 1) : null;
 
                             // Velocity based on last update recency
                             // If updated in last 24h: High velocity.
@@ -88,9 +87,9 @@ export default function LeaderboardPage() {
 
                             return {
                                 ...f,
-                                score: Math.min(Math.round(rawScore), 9999), // Keep raw score for sorting
-                                displayScore: Math.min(Math.round(rawScore / 10), 99), // Normalize for 0-100 display
-                                velocity,
+                                score: rawScore === null ? -1 : Math.min(Math.round(rawScore), 9999), // Use -1 for sorting bottom
+                                actualScore: rawScore, // Store null if needed
+                                velocity: hasRepos ? velocity : 0,
                                 level
                             }
                         }).sort((a: any, b: any) => b.score - a.score) // Sort by highest raw score
@@ -163,7 +162,7 @@ export default function LeaderboardPage() {
                                 </div>
                             </div>
                             <div className="col-span-2 md:col-span-2 p-4 border-r border-white/20 flex items-center justify-end font-mono text-white text-sm">
-                                {friend.score.toLocaleString()}
+                                {friend.actualScore === null ? 'NULL' : friend.actualScore.toLocaleString()}
                             </div>
                             <div className={`col-span-3 md:col-span-2 p-4 flex items-center justify-end font-mono text-xs ${friend.velocity >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {friend.velocity > 0 ? '+' : ''}{friend.velocity}%

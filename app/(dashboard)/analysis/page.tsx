@@ -66,6 +66,8 @@ function AnalysisContent() {
     }
 
     const checkIfRequestExists = async (username: string) => {
+        if (isSendingRequest) return
+        console.log("Checking if friend request exists for:", username)
         try {
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) return
@@ -74,16 +76,26 @@ function AnalysisContent() {
                 .from('users')
                 .select('id')
                 .eq('github_username', username)
-                .single()
-
-            if (!targetUser) return
-
-            const { data: existing } = await supabase
-                .from('friend_requests')
-                .select('status')
-                .or(`and(requester_id.eq.${session.user.id},addressee_id.eq.${targetUser.id}),and(requester_id.eq.${targetUser.id},addressee_id.eq.${session.user.id})`)
                 .maybeSingle()
 
+            if (!targetUser) {
+                console.log("Target user not found in DB for friend request check")
+                return
+            }
+
+            const { data: existing, error } = await supabase
+                .from('friend_requests')
+                .select('status')
+                .or(`requester_id.eq.${session.user.id},addressee_id.eq.${session.user.id}`)
+                .or(`addressee_id.eq.${targetUser.id},requester_id.eq.${targetUser.id}`)
+                .maybeSingle()
+
+            if (error) {
+                console.error("Error checking friend request:", error)
+                return
+            }
+
+            console.log("Friend request check result:", existing)
             if (existing) {
                 setRequestSent(true)
             } else {
@@ -192,6 +204,7 @@ function AnalysisContent() {
                 .maybeSingle()
 
             if (dbError || !dbUser) {
+                console.error("User lookup failed:", { dbError, login: searchedUser.login })
                 toast.error(`${searchedUser.login} hasn't joined EvalHub yet.`, { id: loadingToast })
                 return
             }
@@ -204,12 +217,20 @@ function AnalysisContent() {
             })
 
             if (res.ok) {
+                console.log("Friend request sent successfully")
                 toast.success(`Friend request sent to ${searchedUser.login}!`, { id: loadingToast })
                 setRequestSent(true)
             } else {
-                const err = await res.json()
-                toast.error(err.error || "Failed to send request.", { id: loadingToast })
-                if (err.error?.includes("already exists")) {
+                let errorMsg = "Failed to send request."
+                try {
+                    const err = await res.json()
+                    errorMsg = err.error || errorMsg
+                    console.error("API error response:", err)
+                } catch (parseErr) {
+                    console.error("Failed to parse error response:", parseErr)
+                }
+                toast.error(errorMsg, { id: loadingToast })
+                if (errorMsg.includes("already exists")) {
                     setRequestSent(true)
                 }
             }

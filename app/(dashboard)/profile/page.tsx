@@ -94,7 +94,7 @@ export default function ProfilePage() {
     }
 
     // fallback for score calculation (just a fun metric based on repo count * 5 capped at 100)
-    const score = user ? Math.min(100, 50 + (user.public_repos * 2)) : 0
+    const score = user && user.public_repos > 0 ? Math.min(100, 50 + (user.public_repos * 2)) : null
     const recentRepo = repos.length > 0 ? repos[0] : null
 
     return (
@@ -167,7 +167,7 @@ export default function ProfilePage() {
                             <span className="material-symbols-outlined text-sm">analytics</span>
                         </div>
                         <div>
-                            <p className="text-6xl font-bold tracking-tighter mt-2">{score}%</p>
+                            <p className="text-6xl font-bold tracking-tighter mt-2">{score === null ? 'NULL' : `${score}%`}</p>
                             <div className="flex items-center gap-2 mt-2">
                                 <span className="material-symbols-outlined text-sm">arrow_upward</span>
                                 <p className="text-xs font-bold tracking-widest">Based on Repo Activity</p>

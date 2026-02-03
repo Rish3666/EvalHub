@@ -130,7 +130,7 @@ export function RightSidebar() {
                                     />
                                     <span>{tech.name}</span>
                                 </div>
-                                <span className="font-medium">{tech.percentage}%</span>
+                                <span className="font-medium">{tech.value}%</span>
                             </div>
                         ))}
                     </div>
