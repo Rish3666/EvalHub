@@ -326,74 +326,91 @@ export default function CommunityChatPage() {
                         const showHeader = !prevMsg || prevMsg.user_id !== msg.user_id || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() > 60000 * 5);
 
                         return (
-                            <div key={msg.id} className={`group flex gap-6 ${showHeader ? 'mt-8' : 'mt-1'} px-4 py-2 hover:bg-white/5 transition-all border-l-2 border-transparent hover:border-white/20`}>
-                                <div className="w-12 flex-shrink-0">
-                                    {showHeader ? (
-                                        <div className="w-12 h-12 border border-white overflow-hidden bg-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]">
-                                            {msg.users?.avatar_url ? (
-                                                <img src={msg.users.avatar_url} alt={msg.users.github_username} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center bg-white text-black font-bold">
-                                                    {msg.users?.github_username?.[0]?.toUpperCase() || '?'}
+                            <div key={msg.id} className={`group flex flex-col ${showHeader ? 'mt-8' : 'mt-1'} px-4`}>
+                                <div className={`flex gap-4 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-start group-hover:bg-white/5 transition-all py-2 rounded-lg relative`}>
+                                    {/* Avatar */}
+                                    <div className="w-10 h-10 flex-shrink-0">
+                                        {showHeader ? (
+                                            <div className={`w-10 h-10 border ${isMe ? 'border-blue-500' : 'border-white'} overflow-hidden bg-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]`}>
+                                                {msg.users?.avatar_url ? (
+                                                    <img src={msg.users.avatar_url} alt={msg.users.github_username} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-white text-black font-bold text-xs">
+                                                        {msg.users?.github_username?.[0]?.toUpperCase() || '?'}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </div>
+
+                                    {/* Message Content */}
+                                    <div className={`flex flex-col max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
+                                        {showHeader && (
+                                            <div className={`flex items-center gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
+                                                <span className={`text-[11px] font-black uppercase tracking-wider ${isMe ? 'text-blue-400' : 'text-white'}`}>
+                                                    {isMe ? 'YOU' : (msg.users?.github_username || 'UNKNOWN')}
+                                                </span>
+                                                <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">
+                                                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* Reply Context */}
+                                        {msg.reply_to_id && (
+                                            <div
+                                                className={`mb-2 p-2 border-l-2 border-blue-500/30 bg-white/5 text-[10px] text-gray-500 max-w-sm cursor-pointer hover:bg-white/10 transition-colors ${isMe ? 'text-right border-r-2 border-l-0' : 'text-left'}`}
+                                                onClick={() => {
+                                                    const parent = document.getElementById(`msg-${msg.reply_to_id}`);
+                                                    parent?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-2 mb-1 opacity-70">
+                                                    <Reply className="w-3 h-3" />
+                                                    <span className="font-bold">REPLY_TO</span>
+                                                </div>
+                                                <p className="truncate line-clamp-1 italic">
+                                                    {messages.find(m => m.id === msg.reply_to_id)?.content || 'Original transmission lost...'}
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        <div id={`msg-${msg.id}`} className={`relative group/bubble p-3 rounded-md ${isMe
+                                            ? 'bg-blue-900/20 border border-blue-500/30 text-right selection:bg-blue-500'
+                                            : 'bg-white/5 border border-white/10 text-left selection:bg-white'
+                                            }`}>
+                                            {msg.content && (
+                                                <div className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
+                                                    {renderContent(msg.content)}
                                                 </div>
                                             )}
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] text-gray-700 font-bold text-center opacity-0 group-hover:opacity-100 mt-2">
-                                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                        </div>
-                                    )}
-                                </div>
+                                            {msg.attachments && msg.attachments.length > 0 && (
+                                                <div className={`flex flex-wrap gap-2 mt-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                    {msg.attachments.map((url, i) => (
+                                                        <div key={i} className="max-w-[200px] border border-white/20 bg-black p-0.5 hover:border-white transition-colors cursor-zoom-in">
+                                                            <img
+                                                                src={url}
+                                                                alt="Attachment"
+                                                                className="w-full object-contain"
+                                                                onClick={() => window.open(url, '_blank')}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
 
-                                <div className="flex-1 min-w-0">
-                                    {showHeader && (
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className="text-white font-black text-sm tracking-tighter hover:underline cursor-pointer uppercase">
-                                                {msg.users?.github_username || 'UNKNOWN_NODE'}
-                                            </span>
-                                            <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest bg-white/5 px-2 py-0.5">
-                                                {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {msg.reply_to_id && showHeader && (
-                                        <div className="flex items-center gap-2 mb-2 text-xs text-blue-400 font-bold opacity-50">
-                                            <Reply className="w-3 h-3" />
-                                            <span className="uppercase tracking-tighter">REP_LINK_ACTIVE</span>
-                                        </div>
-                                    )}
-
-                                    <div className="space-y-4">
-                                        {msg.content && (
-                                            <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap selection:bg-white selection:text-black">
-                                                {renderContent(msg.content)}
+                                            {/* Hover Action */}
+                                            <div className={`absolute top-0 ${isMe ? '-left-10' : '-right-10'} opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
+                                                <button
+                                                    onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }}
+                                                    className="p-1.5 bg-black border border-white/20 hover:border-white text-gray-500 hover:text-white transition-colors"
+                                                    title="Reply"
+                                                >
+                                                    <Reply className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                        )}
-                                        {msg.attachments && msg.attachments.length > 0 && (
-                                            <div className="flex flex-wrap gap-4 mt-2">
-                                                {msg.attachments.map((url, i) => (
-                                                    <div key={i} className="max-w-md border-2 border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] bg-white/5 p-1">
-                                                        <img
-                                                            src={url}
-                                                            alt="Attachment"
-                                                            className="max-h-96 object-contain cursor-zoom-in"
-                                                            onClick={() => window.open(url, '_blank')}
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                        </div>
                                     </div>
-                                </div>
-
-                                <div className="opacity-0 group-hover:opacity-100 flex items-start gap-3 transition-all">
-                                    <button
-                                        onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }}
-                                        className="p-1.5 border border-white/10 hover:border-white text-gray-500 hover:text-white transition-colors"
-                                    >
-                                        <Reply className="w-4 h-4" />
-                                    </button>
                                 </div>
                             </div>
                         )
