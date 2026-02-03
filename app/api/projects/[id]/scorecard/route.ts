@@ -68,6 +68,7 @@ export async function POST(
         const context = {
             project: {
                 title: project.title,
+                description: project.description,
                 techStack: project.tech_stack,
                 challenge: project.challenge,
                 solution: project.solution,
