@@ -64,31 +64,37 @@ export default function LeaderboardPage() {
 
                         // 3. Calculate Scores & Sort
                         const rankedFriends = detailedFriends.map((f: any) => {
-                            // Algorithm:
-                            // Base Score = (Public Repos * 2) + (Followers * 0.5)
-                            // We normalize this somewhat but keep it uncapped for "Rank"
+                            // 1. Core Metrics
+                            const now = Date.now();
+                            const lastUpdate = new Date(f.updated_at).getTime();
+                            const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
+                            const accountAgeYears = Math.max((now - new Date(f.created_at).getTime()) / (1000 * 60 * 60 * 24 * 365), 0.1);
+
+                            // 2. Score Calculation
                             const hasRepos = f.public_repos > 0;
                             const rawScore = hasRepos ? (f.public_repos * 2) + (f.followers * 0.5) + (f.public_gists * 1) : null;
 
-                            // Velocity based on last update recency
-                            // If updated in last 24h: High velocity.
-                            const lastUpdate = new Date(f.updated_at).getTime();
-                            const now = Date.now();
-                            const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
+                            // 3. Deterministic Velocity Algorithm:
+                            const reposPerYear = f.public_repos / accountAgeYears;
+                            const followersPerYear = f.followers / accountAgeYears;
 
-                            let velocity = 0;
-                            if (hoursSinceUpdate < 24) velocity = Math.floor(Math.random() * 20) + 80; // 80-100%
-                            else if (hoursSinceUpdate < 72) velocity = Math.floor(Math.random() * 30) + 40; // 40-70%
-                            else velocity = Math.floor(Math.random() * 20) - 10; // -10 to 10%
+                            // Recency Factor: Decays if not updated recently
+                            const recencyImpact = hoursSinceUpdate < 48 ? 1.2 : Math.max(0.2, 1 - (hoursSinceUpdate / (24 * 30)));
 
-                            // Level based on account age in years
-                            const accountAgeYears = (now - new Date(f.created_at).getTime()) / (1000 * 60 * 60 * 24 * 365);
+                            // Calculate Momentum (%)
+                            let velocity = Math.floor(((reposPerYear * 1.5) + (followersPerYear * 0.05)) * recencyImpact);
+
+                            // Apply activity-based variation (deterministic based on ID)
+                            const idHash = f.id % 20;
+                            velocity = velocity + (idHash - 10);
+
+                            // 4. Level based on account age in years
                             const level = Math.floor(accountAgeYears * 5) + 1;
 
                             return {
                                 ...f,
-                                score: rawScore === null ? -1 : Math.min(Math.round(rawScore), 9999), // Use -1 for sorting bottom
-                                actualScore: rawScore, // Store null if needed
+                                score: rawScore === null ? -1 : Math.min(Math.round(rawScore), 9999),
+                                actualScore: rawScore,
                                 velocity: hasRepos ? velocity : 0,
                                 level
                             }
