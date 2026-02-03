@@ -238,11 +238,6 @@ export default function FeedPage() {
                 )}
             </div>
 
-            <div className="w-full pt-16 flex justify-between text-xs text-gray-600 tracking-widest font-mono pb-8 mt-auto">
-                <span>EvalHub_ OS v2.1.0</span>
-                <span className="animate-pulse">_Cursor_Active</span>
-                <span>Mem: 64k OK</span>
-            </div>
         </div>
     )
 }

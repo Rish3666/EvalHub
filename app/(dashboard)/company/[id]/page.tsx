@@ -191,15 +191,6 @@ export default function CompanyMatchPage() {
                     </div>
                 </div>
 
-                {/* Status Bar */}
-                <div className="border-t border-dashed border-white/20 pt-6 flex justify-between items-center text-[10px] text-gray-500 uppercase tracking-widest relative z-10">
-                    <div className="flex gap-4">
-                        <span>CPU: OK</span>
-                        <span>NET: ESTABLISHED</span>
-                        <span>MEM: 128KB FREE</span>
-                    </div>
-                    <button onClick={() => router.back()} className="hover:text-white transition-colors underline cursor-pointer">Terminate_Session</button>
-                </div>
             </div>
         </div>
     )

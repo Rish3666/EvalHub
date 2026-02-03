@@ -175,10 +175,6 @@ export default function LeaderboardPage() {
                 )}
             </div>
 
-            <div className="w-full pt-8 flex justify-between items-center text-xs text-gray-600 tracking-widest font-mono border-t border-white/10 mt-8">
-                <span>EvalHub_ Ranking Algorithm v3.1</span>
-                <span>Nodes: {friends.length} Online</span>
-            </div>
         </div>
     )
 }

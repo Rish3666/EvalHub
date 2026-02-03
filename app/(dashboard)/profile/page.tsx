@@ -252,11 +252,6 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            <div className="w-full pt-4 border-t border-dashed border-white/30 flex justify-between text-xs text-gray-500 tracking-widest mt-8">
-                <span>EvalHub_ OS v2.0.4</span>
-                <span className="animate-pulse">_Cursor_Active</span>
-                <span>Mem: 64K OK</span>
-            </div>
         </div>
     )
 }

@@ -111,11 +111,6 @@ export default function InboxPage() {
                 )}
             </div>
 
-            <div className="w-full pt-16 flex justify-between text-[10px] md:text-xs text-gray-600 tracking-widest font-mono pb-8">
-                <span>EvalHub_ OS v2.1.0</span>
-                <span className="animate-pulse">_Buffer_Ready</span>
-                <span>Mem: 64k OK</span>
-            </div>
         </div>
     )
 }

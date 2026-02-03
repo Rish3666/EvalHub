@@ -399,11 +399,6 @@ export default function CommunityPage() {
             </div>
 
 
-            <div className="w-full pt-4 border-t border-dashed border-white/30 flex justify-between text-[10px] md:text-xs text-gray-500 tracking-widest">
-                <span>EvalHub_ OS v2.0.4</span>
-                <span className="animate-pulse">_Cursor_Active</span>
-                <span>Mem: 64k OK</span>
-            </div>
         </div>
     )
 }
