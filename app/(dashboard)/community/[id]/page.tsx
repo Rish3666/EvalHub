@@ -80,9 +80,27 @@ export default function CommunityChatPage() {
         }
         init()
 
-        // Real-time subscription (Optional, but using polling for now for stability as per existing code)
-        const interval = setInterval(fetchMessages, 3000)
-        return () => clearInterval(interval)
+        // Realtime subscription for instant message updates
+        const channel = supabase
+            .channel(`community-${communityId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `community_id=eq.${communityId}`
+                },
+                (payload) => {
+                    // Add the new message to the list
+                    setMessages((prev) => [...prev, payload.new as any])
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [communityId])
 
     useEffect(() => {
