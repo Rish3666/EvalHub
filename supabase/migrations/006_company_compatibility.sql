@@ -22,15 +22,18 @@ CREATE TABLE IF NOT EXISTS public.company_matches (
 -- RLS for companies
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allows public read access to companies" ON public.companies;
 CREATE POLICY "Allows public read access to companies" ON public.companies
     FOR SELECT USING (true);
 
 -- RLS for company_matches
 ALTER TABLE public.company_matches ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own matches" ON public.company_matches;
 CREATE POLICY "Users can view their own matches" ON public.company_matches
     FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own matches" ON public.company_matches;
 CREATE POLICY "Users can insert their own matches" ON public.company_matches
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 

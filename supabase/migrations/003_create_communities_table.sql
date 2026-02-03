@@ -14,15 +14,19 @@ CREATE TABLE IF NOT EXISTS public.communities (
 ALTER TABLE public.communities ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for communities table
+DROP POLICY IF EXISTS "Public communities are viewable by all." ON public.communities;
 CREATE POLICY "Public communities are viewable by all." ON public.communities
   FOR SELECT USING (is_public = TRUE);
 
+DROP POLICY IF EXISTS "Users can create communities." ON public.communities;
 CREATE POLICY "Users can create communities." ON public.communities
   FOR INSERT WITH CHECK (auth.uid() = creator_id);
 
+DROP POLICY IF EXISTS "Users can update their own communities." ON public.communities;
 CREATE POLICY "Users can update their own communities." ON public.communities
   FOR UPDATE USING (auth.uid() = creator_id);
 
+DROP POLICY IF EXISTS "Users can delete their own communities." ON public.communities;
 CREATE POLICY "Users can delete their own communities." ON public.communities
   FOR DELETE USING (auth.uid() = creator_id);
 

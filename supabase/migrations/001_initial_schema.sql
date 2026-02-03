@@ -89,72 +89,89 @@ ALTER TABLE public.project_answers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scorecards ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for users table
+DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
 CREATE POLICY "Users can view own profile" ON public.users
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 CREATE POLICY "Users can update own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
 CREATE POLICY "Users can insert own profile" ON public.users
   FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- RLS Policies for projects table
+DROP POLICY IF EXISTS "Users can view own projects" ON public.projects;
 CREATE POLICY "Users can view own projects" ON public.projects
   FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Public projects viewable by all" ON public.projects;
 CREATE POLICY "Public projects viewable by all" ON public.projects
   FOR SELECT USING (is_public = true);
 
+DROP POLICY IF EXISTS "Users can insert own projects" ON public.projects;
 CREATE POLICY "Users can insert own projects" ON public.projects
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update own projects" ON public.projects;
 CREATE POLICY "Users can update own projects" ON public.projects
   FOR UPDATE USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete own projects" ON public.projects;
 CREATE POLICY "Users can delete own projects" ON public.projects
   FOR DELETE USING (user_id = auth.uid());
 
 -- RLS Policies for project_analyses table
+DROP POLICY IF EXISTS "Users can view own analyses" ON public.project_analyses;
 CREATE POLICY "Users can view own analyses" ON public.project_analyses
   FOR SELECT USING (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can insert own analyses" ON public.project_analyses;
 CREATE POLICY "Users can insert own analyses" ON public.project_analyses
   FOR INSERT WITH CHECK (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())
   );
 
 -- RLS Policies for project_answers table
+DROP POLICY IF EXISTS "Users can view own answers" ON public.project_answers;
 CREATE POLICY "Users can view own answers" ON public.project_answers
   FOR SELECT USING (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can insert own answers" ON public.project_answers;
 CREATE POLICY "Users can insert own answers" ON public.project_answers
   FOR INSERT WITH CHECK (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can update own answers" ON public.project_answers;
 CREATE POLICY "Users can update own answers" ON public.project_answers
   FOR UPDATE USING (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())
   );
 
 -- RLS Policies for scorecards table
+DROP POLICY IF EXISTS "Public scorecards viewable by all" ON public.scorecards;
 CREATE POLICY "Public scorecards viewable by all" ON public.scorecards
   FOR SELECT USING (is_public = true);
 
+DROP POLICY IF EXISTS "Users can view own scorecards" ON public.scorecards;
 CREATE POLICY "Users can view own scorecards" ON public.scorecards
   FOR SELECT USING (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can insert own scorecards" ON public.scorecards;
 CREATE POLICY "Users can insert own scorecards" ON public.scorecards
   FOR INSERT WITH CHECK (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "Users can update own scorecards" ON public.scorecards;
 CREATE POLICY "Users can update own scorecards" ON public.scorecards
   FOR UPDATE USING (
     project_id IN (SELECT id FROM public.projects WHERE user_id = auth.uid())

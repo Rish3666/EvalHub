@@ -50,12 +50,15 @@ CREATE INDEX IF NOT EXISTS idx_friend_requests_requester_id ON public.friend_req
 
 ALTER TABLE public.friend_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their friend requests" ON public.friend_requests;
 CREATE POLICY "Users can view their friend requests" ON public.friend_requests
   FOR SELECT USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
 
+DROP POLICY IF EXISTS "Users can send friend requests" ON public.friend_requests;
 CREATE POLICY "Users can send friend requests" ON public.friend_requests
   FOR INSERT WITH CHECK (auth.uid() = requester_id);
 
+DROP POLICY IF EXISTS "Recipients can respond to friend requests" ON public.friend_requests;
 CREATE POLICY "Recipients can respond to friend requests" ON public.friend_requests
   FOR UPDATE USING (auth.uid() = addressee_id);
 

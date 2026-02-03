@@ -33,16 +33,22 @@ alter table public.community_members enable row level security;
 alter table public.messages enable row level security;
 
 -- Allow read access to everyone for public communities
+drop policy if exists "Allow read access to all users" on public.communities;
 create policy "Allow read access to all users" on public.communities for select using (true);
 
 -- Allow authenticated users to create communities
+drop policy if exists "Allow authenticated users to create communities" on public.communities;
 create policy "Allow authenticated users to create communities" on public.communities for insert with check (auth.role() = 'authenticated');
 
 -- Allow authenticated users to join
+drop policy if exists "Allow authenticated users to insert members" on public.community_members;
 create policy "Allow authenticated users to insert members" on public.community_members for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Allow members to view members" on public.community_members;
 create policy "Allow members to view members" on public.community_members for select using (true);
 
 -- Allow members to read messages
+drop policy if exists "Allow members to read messages" on public.messages;
 create policy "Allow members to read messages" on public.messages for select using (
   exists (
     select 1 from public.community_members
@@ -52,6 +58,7 @@ create policy "Allow members to read messages" on public.messages for select usi
 );
 
 -- Allow members to insert messages
+drop policy if exists "Allow members to send messages" on public.messages;
 create policy "Allow members to send messages" on public.messages for insert with check (
   exists (
     select 1 from public.community_members
