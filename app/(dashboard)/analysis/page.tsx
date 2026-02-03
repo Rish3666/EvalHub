@@ -208,7 +208,7 @@ function AnalysisContent() {
 
             if (dbError || !dbUser) {
                 console.error("User lookup failed:", { dbError, dbUser, login: searchedUser.login })
-                toast.error(`${searchedUser.login} hasn't joined EvalHub yet.`, { id: loadingToast })
+                toast.error(`${searchedUser.login} hasn't joined EvalHub yet. They must log in once to be discoverable.`, { id: loadingToast })
                 setIsSendingRequest(false)
                 return
             }
