@@ -1,29 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Github, Loader2 } from "lucide-react";
+import { Github, Loader2, Search, ArrowRight, Code, Star, Calendar } from "lucide-react";
+import { Card } from "@/components/ui/card";
+
+interface GitHubRepo {
+    id: number;
+    name: string;
+    full_name: string;
+    description: string;
+    html_url: string;
+    language: string;
+    stargazers_count: number;
+    updated_at: string;
+}
 
 export default function NewProjectPage() {
     const router = useRouter();
     const { toast } = useToast();
     const supabase = createClient();
 
+    const [step, setStep] = useState(1); // 1: Username, 2: Repo Selection, 3: Details
     const [loading, setLoading] = useState(false);
+    const [githubUsername, setGithubUsername] = useState("");
+    const [repos, setRepos] = useState<GitHubRepo[]>([]);
+
     const [formData, setFormData] = useState({
         title: "",
         repo_url: "",
@@ -32,6 +40,41 @@ export default function NewProjectPage() {
         challenge: "",
         solution: "",
     });
+
+    const handleFetchRepos = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!githubUsername) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch(`/api/github/repos?username=${githubUsername}`);
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || "Failed to fetch repositories");
+
+            setRepos(data);
+            setStep(2);
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSelectRepo = (repo: GitHubRepo) => {
+        setFormData({
+            ...formData,
+            title: repo.name.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" "),
+            repo_url: repo.html_url,
+            description: repo.description || "",
+            tech_stack: repo.language || "",
+        });
+        setStep(3);
+    };
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -45,7 +88,6 @@ export default function NewProjectPage() {
         setLoading(true);
 
         try {
-            // 1. Get current user
             const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
@@ -58,7 +100,6 @@ export default function NewProjectPage() {
                 return;
             }
 
-            // 2. Insert project
             const { data: project, error } = await supabase
                 .from("projects")
                 .insert({
@@ -80,18 +121,13 @@ export default function NewProjectPage() {
                 description: "Starting AI analysis...",
             });
 
-            // 3. Trigger AI Analysis
             const analysisRes = await fetch(`/api/projects/${project.id}/analyze`, {
                 method: "POST",
             });
 
             const analysisData = await analysisRes.json();
+            if (!analysisRes.ok) throw new Error(analysisData.error || "Failed to start analysis");
 
-            if (!analysisRes.ok) {
-                throw new Error(analysisData.error || "Failed to start analysis");
-            }
-
-            // 4. Redirect to Q&A
             router.push(`/project/${project.id}/analysis`);
         } catch (error: any) {
             console.error("Error creating project:", error);
@@ -106,112 +142,179 @@ export default function NewProjectPage() {
     };
 
     return (
-        <div className="container max-w-2xl py-12">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl">Analyze New Project</CardTitle>
-                    <CardDescription>
-                        Submit your GitHub repository and tell us about the project. Our AI will analyze your code and prepare a personalized skill assessment.
-                    </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleSubmit}>
-                    <CardContent className="space-y-6">
+        <div className="flex flex-col min-h-screen">
+            {/* Page Header */}
+            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md px-4 py-3 border-b border-border/50">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => step > 1 ? setStep(step - 1) : router.back()} className="rounded-full">
+                        ←
+                    </Button>
+                    <h1 className="text-xl font-bold">
+                        {step === 1 && "Import GitHub Profile"}
+                        {step === 2 && "Select Repository"}
+                        {step === 3 && "Final Details"}
+                    </h1>
+                </div>
+            </div>
+
+            <div className="px-4 py-8">
+                {step === 1 && (
+                    <div className="max-w-md mx-auto space-y-8 text-center">
                         <div className="space-y-2">
-                            <Label htmlFor="title">Project Title</Label>
-                            <Input
-                                id="title"
-                                name="title"
-                                placeholder="e.g. My Awesome Portfolio"
-                                required
-                                value={formData.title}
-                                onChange={handleChange}
-                            />
+                            <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Github className="h-8 w-8 text-primary" />
+                            </div>
+                            <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Automate Import</h2>
+                            <p className="text-muted-foreground">Enter your GitHub username to fetch your projects.</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="repo_url">GitHub Repository URL</Label>
-                            <div className="relative">
-                                <Github className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <form onSubmit={handleFetchRepos} className="space-y-4">
+                            <div className="relative group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                 <Input
-                                    id="repo_url"
-                                    name="repo_url"
-                                    className="pl-10"
-                                    placeholder="https://github.com/username/repo"
+                                    placeholder="GitHub Username"
+                                    value={githubUsername}
+                                    onChange={(e) => setGithubUsername(e.target.value)}
+                                    className="pl-12 h-14 bg-muted/30 border-none text-lg rounded-full"
                                     required
-                                    type="url"
-                                    value={formData.repo_url}
-                                    onChange={handleChange}
                                 />
                             </div>
+                            <Button type="submit" size="lg" className="w-full rounded-full h-14 font-bold text-lg" disabled={loading}>
+                                {loading ? <Loader2 className="animate-spin" /> : "Fetch Repositories"}
+                            </Button>
+                        </form>
+                    </div>
+                )}
+
+                {step === 2 && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Select a Project</h2>
+                            <p className="text-sm text-muted-foreground">{repos.length} repos found</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="tech_stack">Tech Stack (comma separated)</Label>
-                            <Input
-                                id="tech_stack"
-                                name="tech_stack"
-                                placeholder="Next.js, TypeScript, Supabase, Tailwind"
-                                required
-                                value={formData.tech_stack}
-                                onChange={handleChange}
-                            />
+                        <div className="grid gap-3">
+                            {repos.map((repo) => (
+                                <Card
+                                    key={repo.id}
+                                    className="p-4 hover:bg-muted/10 cursor-pointer transition-colors border-border/50 group"
+                                    onClick={() => handleSelectRepo(repo)}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="space-y-1">
+                                            <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{repo.name}</h3>
+                                            <p className="text-sm text-muted-foreground line-clamp-1">{repo.description || "No description provided."}</p>
+                                            <div className="flex items-center gap-4 pt-2">
+                                                {repo.language && (
+                                                    <div className="flex items-center gap-1.5 text-xs font-medium">
+                                                        <Code className="h-3 w-3" />
+                                                        {repo.language}
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-1.5 text-xs font-medium">
+                                                    <Star className="h-3 w-3" />
+                                                    {repo.stargazers_count}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-xs font-medium">
+                                                    <Calendar className="h-3 w-3" />
+                                                    {new Date(repo.updated_at).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary mt-1" />
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {step === 3 && (
+                    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="space-y-1">
+                            <h2 className="text-2xl font-black italic tracking-tighter uppercase leading-none">Almost Done</h2>
+                            <p className="text-muted-foreground">Verify the details and add your technical challenges.</p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="description">Short Description</Label>
-                            <Textarea
-                                id="description"
-                                name="description"
-                                placeholder="What does this project do?"
-                                required
-                                className="min-h-[100px]"
-                                value={formData.description}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-6">
                             <div className="space-y-2">
-                                <Label htmlFor="challenge">Top Technical Challenge</Label>
+                                <Label htmlFor="title" className="font-bold ml-1">Project Title</Label>
+                                <Input
+                                    id="title"
+                                    name="title"
+                                    required
+                                    value={formData.title}
+                                    onChange={handleChange}
+                                    className="bg-muted/30 border-none h-12"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="tech_stack" className="font-bold ml-1">Key Technologies</Label>
+                                <Input
+                                    id="tech_stack"
+                                    name="tech_stack"
+                                    placeholder="Next.js, TypeScript, Supabase, Tailwind"
+                                    required
+                                    value={formData.tech_stack}
+                                    onChange={handleChange}
+                                    className="bg-muted/30 border-none h-12"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="description" className="font-bold ml-1">Description</Label>
                                 <Textarea
-                                    id="challenge"
-                                    name="challenge"
-                                    placeholder="What was the hardest part to build?"
-                                    className="min-h-[120px]"
-                                    value={formData.challenge}
+                                    id="description"
+                                    name="description"
+                                    required
+                                    className="min-h-[100px] bg-muted/30 border-none rounded-2xl p-4 resize-none"
+                                    value={formData.description}
                                     onChange={handleChange}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="solution">How You Solved It</Label>
-                                <Textarea
-                                    id="solution"
-                                    name="solution"
-                                    placeholder="Describe your technical solution..."
-                                    className="min-h-[120px]"
-                                    value={formData.solution}
-                                    onChange={handleChange}
-                                />
+
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="challenge" className="font-bold ml-1 text-primary italic">Deep Dive: The Challenge</Label>
+                                    <Textarea
+                                        id="challenge"
+                                        name="challenge"
+                                        placeholder="What was the hardest part to build? (Helps AI evaluate depth)"
+                                        className="min-h-[120px] bg-muted/30 border-none rounded-2xl p-4 resize-none"
+                                        value={formData.challenge}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="solution" className="font-bold ml-1 text-primary italic">Deep Dive: Your Solution</Label>
+                                    <Textarea
+                                        id="solution"
+                                        name="solution"
+                                        placeholder="Describe your technical implementation..."
+                                        className="min-h-[120px] bg-muted/30 border-none rounded-2xl p-4 resize-none"
+                                        value={formData.solution}
+                                        onChange={handleChange}
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-between border-t py-6">
-                        <Button variant="ghost" type="button" onClick={() => router.back()}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Analyzing...
-                                </>
-                            ) : (
-                                "Start AI Analysis →"
-                            )}
-                        </Button>
-                    </CardFooter>
-                </form>
-            </Card>
+
+                        <div className="flex justify-end pt-4 pb-12">
+                            <Button type="submit" size="lg" disabled={loading} className="rounded-full px-12 font-bold h-12">
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        Analyzing...
+                                    </>
+                                ) : (
+                                    "Launch AI Analysis →"
+                                )}
+                            </Button>
+                        </div>
+                    </form>
+                )}
+            </div>
         </div>
     );
 }
