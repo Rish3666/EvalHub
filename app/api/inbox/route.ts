@@ -19,7 +19,7 @@ export async function GET() {
                 created_at,
                 requester:users!friend_requests_requester_id_fkey (
                     id,
-                    username,
+                    github_username,
                     avatar_url,
                     full_name
                 )

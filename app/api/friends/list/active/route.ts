@@ -16,8 +16,8 @@ export async function GET() {
         const { data, error } = await supabase
             .from('friend_requests')
             .select(`
-                requester:users!friend_requests_requester_id_fkey (id, username, avatar_url, full_name, github_username, online_status, last_seen),
-                addressee:users!friend_requests_addressee_id_fkey (id, username, avatar_url, full_name, github_username, online_status, last_seen)
+                requester:users!friend_requests_requester_id_fkey (id, avatar_url, full_name, github_username, online_status, last_seen),
+                addressee:users!friend_requests_addressee_id_fkey (id, avatar_url, full_name, github_username, online_status, last_seen)
             `)
             .eq('status', 'accepted')
             .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)

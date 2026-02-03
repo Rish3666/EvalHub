@@ -10,7 +10,7 @@ interface FriendRequest {
     created_at: string;
     requester: {
         id: string;
-        username: string;
+        github_username: string;
         avatar_url: string;
         full_name: string;
     }
@@ -82,10 +82,10 @@ export default function InboxPage() {
                         <div key={req.id} className="border border-white p-6 bg-black flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-white/5 transition-all">
                             <div className="flex items-center gap-4 w-full md:w-auto">
                                 <div className="h-16 w-16 border border-white flex items-center justify-center bg-white overflow-hidden shrink-0">
-                                    <img src={req.requester.avatar_url || "/placeholder-user.png"} alt={req.requester.username} className="w-full h-full object-cover" />
+                                    <img src={req.requester.avatar_url || "/placeholder-user.png"} alt={req.requester.github_username} className="w-full h-full object-cover" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold tracking-widest uppercase">@{req.requester.username || "Anonymous"}</h2>
+                                    <h2 className="text-xl font-bold tracking-widest uppercase">@{req.requester.github_username || "Anonymous"}</h2>
                                     <p className="text-xs text-gray-400 font-mono tracking-tighter">
                                         wants to connect • {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
                                     </p>

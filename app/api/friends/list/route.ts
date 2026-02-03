@@ -19,8 +19,8 @@ export async function GET() {
                 id,
                 requester_id,
                 addressee_id,
-                requester:users!friend_requests_requester_id_fkey (id, username, avatar_url, full_name, github_username),
-                addressee:users!friend_requests_addressee_id_fkey (id, username, avatar_url, full_name, github_username)
+                requester:users!friend_requests_requester_id_fkey (id, avatar_url, full_name, github_username),
+                addressee:users!friend_requests_addressee_id_fkey (id, avatar_url, full_name, github_username)
             `)
             .eq('status', 'accepted')
             .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`)
