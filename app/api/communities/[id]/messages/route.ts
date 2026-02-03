@@ -15,10 +15,10 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
     const { data, error } = await supabase
         .from('messages')
-        .select('*')
+        .select('*, users(github_username, avatar_url, full_name)')
         .eq('community_id', params.id)
         .order('created_at', { ascending: true })
-        .limit(50)
+        .limit(100)
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
