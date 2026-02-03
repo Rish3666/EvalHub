@@ -46,7 +46,7 @@ type FilterType = 'friends' | 'followers' | 'both';
 export default function FeedPage() {
     const [feedItems, setFeedItems] = useState<FeedItem[]>([])
     const [loading, setLoading] = useState(true)
-    const [filter, setFilter] = useState<FilterType>('both')
+    const [filter, setFilter] = useState<FilterType>('friends')
     const [interactions, setInteractions] = useState<Interactions>({})
 
     // Comments State
@@ -61,7 +61,7 @@ export default function FeedPage() {
         let ismounted = true;
         async function fetchFeed() {
             setLoading(true)
-            // setFeedItems([]) // Optional: Clear previous items to avoid confusion while loading
+            setFeedItems([]) // Clear previous items to avoid stale data from other filters
 
             const { data: { session } } = await supabase.auth.getSession()
 
@@ -106,6 +106,8 @@ export default function FeedPage() {
                         const combined = [...following, ...followers];
                         uniqueUsers = Array.from(new Map(combined.map((u: any) => [u.login, u])).values());
                     }
+
+                    console.log(`Feed Fetch [${filter}]:`, { userCount: uniqueUsers.length, users: uniqueUsers.map(u => u.login) });
 
                     if (!ismounted) return;
 
