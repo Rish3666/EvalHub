@@ -75,11 +75,16 @@ export default function FeedPage() {
 
                     // 1. Fetch Users based on Filter explicitly
                     if (filter === 'friends') {
-                        const res = await fetch('https://api.github.com/user/following?per_page=15', {
-                            headers,
-                            cache: 'no-store'
-                        });
-                        if (res.ok) uniqueUsers = await res.json();
+                        // Fetch actual friends from internal database
+                        const internalRes = await fetch('/api/friends/list');
+                        if (internalRes.ok) {
+                            const internalFriends = await internalRes.json();
+                            uniqueUsers = internalFriends.map((u: any) => ({
+                                login: u.github_username,
+                                avatar_url: u.avatar_url,
+                                id: u.id
+                            }));
+                        }
                     }
                     else if (filter === 'followers') {
                         const res = await fetch('https://api.github.com/user/followers?per_page=15', {
