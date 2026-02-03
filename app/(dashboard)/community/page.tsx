@@ -153,8 +153,30 @@ export default function CommunityPage() {
             if (res.ok) {
                 toast.success('Unfollowed community')
                 fetchFollowingCommunities()
+                if (viewMode === 'following') fetchCommunities()
             } else {
                 toast.error('Failed to unfollow')
+            }
+        } catch (error) {
+            toast.error("Network error")
+        }
+    }
+
+    const handleRemoveFriend = async (friendId: string, username: string) => {
+        if (!confirm(`Are you sure you want to remove @${username} from your friends?`)) return
+
+        try {
+            const res = await fetch('/api/friends/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId: friendId })
+            })
+
+            if (res.ok) {
+                toast.success(`Removed @${username} from friends`)
+                setFriends(prev => prev.filter(f => f.id !== friendId))
+            } else {
+                toast.error("Failed to remove friend")
             }
         } catch (error) {
             toast.error("Network error")
@@ -270,12 +292,21 @@ export default function CommunityPage() {
                                             {friend.full_name || "Member"}
                                         </p>
                                     </div>
-                                    <button
-                                        onClick={() => router.push(`/inbox`)}
-                                        className="w-full bg-white text-black py-2 text-xs font-bold tracking-widest hover:bg-gray-300 transition-colors uppercase"
-                                    >
-                                        Message_
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => router.push(`/inbox`)}
+                                            className="flex-1 bg-white text-black py-2 text-[10px] font-bold tracking-widest hover:bg-gray-300 transition-colors uppercase"
+                                        >
+                                            Message
+                                        </button>
+                                        <button
+                                            onClick={() => handleRemoveFriend(friend.id, friend.username)}
+                                            className="px-3 border border-red-500/50 text-red-500 py-2 text-[10px] font-bold tracking-widest hover:bg-red-500 hover:text-white transition-colors uppercase"
+                                            title="Remove Friend"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">person_remove</span>
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         )}
