@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { fetchReadme, fetchRepoStructure } from '@/lib/github'
+import { fetchReadme, fetchRepoStructure, fetchRepoStats, fetchRepoLanguages } from '@/lib/github'
 import { generateProjectAnalysis } from '@/lib/gemini'
 
 export async function POST(request: Request) {
@@ -14,14 +14,16 @@ export async function POST(request: Request) {
         // Token is optional for public repos
         const token = session?.provider_token || null;
 
-        // 1. Fetch Repo Metadata
-        const [structure, readme] = await Promise.all([
+        // 1. Fetch Repo Metadata, Structure, README, and Languages
+        const [structure, readme, stats, languages] = await Promise.all([
             fetchRepoStructure(owner, repoName, token),
-            fetchReadme(owner, repoName, token)
+            fetchReadme(owner, repoName, token),
+            fetchRepoStats(owner, repoName, token),
+            fetchRepoLanguages(owner, repoName, token)
         ])
 
         // 2. Perform AI Analysis
-        const analysis = await generateProjectAnalysis(repoName, readme, structure)
+        const analysis = await generateProjectAnalysis(repoName, readme, structure, stats, languages)
 
         if (!analysis) {
             return NextResponse.json({ error: 'Failed to generate analysis.' }, { status: 500 })

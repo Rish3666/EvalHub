@@ -35,22 +35,30 @@ export interface TechStackRecommendation {
   }[];
 }
 
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-export async function generateProjectAnalysis(repoName: string, readmeContent: string, fileStructure: string): Promise<ProjectAnalysis | null> {
+export async function generateProjectAnalysis(
+  repoName: string,
+  readmeContent: string,
+  fileStructure: string,
+  stats: any,
+  languages: any
+): Promise<ProjectAnalysis | null> {
   if (!apiKey) return null;
 
   const prompt = `
     Analyze the following GitHub repository project.
     Repo Name: ${repoName}
+    Stats: ${JSON.stringify(stats)}
+    Languages: ${JSON.stringify(languages)}
     File Structure: ${fileStructure.slice(0, 1000)}...
     README Snippet: ${readmeContent.slice(0, 2000)}...
 
     Act as a Senior Principal Engineer conducting a technical interview.
-    1. Identify the tech stack.
-    2. Assess the complexity and completeness (0-100).
+    1. Identify the tech stack and primary language focus based on language bytes.
+    2. Assess the complexity and completeness (0-100). Consider stars/forks/activity in stats.
     3. Generate a "Score Card" (Clean Code, Architecture, Best Practices) from 0-100.
-    4. Generate 3-5 specific technical interview questions based on the ACTUAL code/structure provided. Explain the context for each question.
+    4. Generate 3-5 specific technical interview questions based on the ACTUAL code structure and tech stack detected. Explain the context for each question.
 
     Respond ONLY in valid JSON format matching this interface:
     {

@@ -29,6 +29,7 @@ function AnalysisContent() {
     const [searchUsername, setSearchUsername] = useState('')
     const [searchedUser, setSearchedUser] = useState<{ login: string, avatar_url: string } | null>(null)
     const [requestSent, setRequestSent] = useState(false)
+    const [isSendingRequest, setIsSendingRequest] = useState(false)
 
     const supabase = createClient()
     const searchParams = useSearchParams()
@@ -171,21 +172,27 @@ function AnalysisContent() {
     }
 
     const handleAddFriend = async () => {
-        if (!searchedUser) return
+        if (!searchedUser || isSendingRequest || requestSent) return
+
+        setIsSendingRequest(true)
+        const loadingToast = toast.loading(`Connecting to ${searchedUser.login}...`)
 
         try {
             const { data: { session } } = await supabase.auth.getSession()
-            if (!session) return
+            if (!session) {
+                toast.error("Please login to add friends")
+                return
+            }
 
             // 1. Find the user in our database first
             const { data: dbUser, error: dbError } = await supabase
                 .from('users')
                 .select('id')
                 .eq('github_username', searchedUser.login)
-                .single()
+                .maybeSingle()
 
             if (dbError || !dbUser) {
-                toast.error("User has not joined EvalHub yet.")
+                toast.error(`${searchedUser.login} hasn't joined EvalHub yet.`, { id: loadingToast })
                 return
             }
 
@@ -197,15 +204,20 @@ function AnalysisContent() {
             })
 
             if (res.ok) {
-                toast.success(`Friend request sent to ${searchedUser.login}!`)
+                toast.success(`Friend request sent to ${searchedUser.login}!`, { id: loadingToast })
                 setRequestSent(true)
             } else {
                 const err = await res.json()
-                toast.error(err.error || "Failed to send request.")
+                toast.error(err.error || "Failed to send request.", { id: loadingToast })
+                if (err.error?.includes("already exists")) {
+                    setRequestSent(true)
+                }
             }
         } catch (error) {
             console.error(error)
-            toast.error("Error sending request.")
+            toast.error("Error sending request.", { id: loadingToast })
+        } finally {
+            setIsSendingRequest(false)
         }
     }
 
@@ -236,11 +248,13 @@ function AnalysisContent() {
                     <div className="flex items-center gap-4">
                         <Button
                             onClick={handleAddFriend}
-                            disabled={requestSent}
-                            className={`font-bold tracking-widest font-mono border border-white ${requestSent ? 'bg-black text-white cursor-default hover:bg-black hover:text-white' : 'bg-white text-black hover:bg-gray-200'}`}
+                            disabled={requestSent || isSendingRequest}
+                            className={`font-bold tracking-widest font-mono border border-white ${requestSent ? 'bg-black text-white cursor-default' : 'bg-white text-black hover:bg-gray-200'}`}
                         >
-                            <span className="material-symbols-outlined text-sm mr-2">{requestSent ? 'check' : 'person_add'}</span>
-                            {requestSent ? 'REQUEST SENT' : 'ADD FRIEND'}
+                            <span className="material-symbols-outlined text-sm mr-2">
+                                {isSendingRequest ? 'sync' : requestSent ? 'check' : 'person_add'}
+                            </span>
+                            {isSendingRequest ? 'CONNECTING...' : requestSent ? 'REQUEST SENT' : 'ADD FRIEND'}
                         </Button>
                         <Button onClick={() => window.location.href = '/leaderboard'} variant="outline" className="border-white text-white hover:bg-white hover:text-black font-mono font-bold tracking-widest">
                             <span className="material-symbols-outlined text-sm mr-2">group</span>

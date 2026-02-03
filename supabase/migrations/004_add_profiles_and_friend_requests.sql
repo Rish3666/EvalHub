@@ -8,8 +8,10 @@ ALTER TABLE public.users
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON public.users (username);
 
--- Public profiles view (hide sensitive fields like email)
-CREATE OR REPLACE VIEW public.public_profiles AS
+-- Public profiles view (Security Invoker handles permissions correctly)
+CREATE OR REPLACE VIEW public.public_profiles 
+WITH (security_invoker = true)
+AS
 SELECT
   id,
   username,
@@ -22,8 +24,14 @@ SELECT
 FROM public.users
 WHERE is_public = TRUE AND username IS NOT NULL;
 
-GRANT SELECT ON public.public_profiles TO authenticated;
-GRANT SELECT ON public.public_profiles TO anon;
+-- Permissions for profile lookup
+REVOKE SELECT ON public.users FROM public, anon, authenticated;
+GRANT SELECT (id, username, full_name, avatar_url, bio, location, github_username, is_public, created_at) ON public.users TO authenticated, anon;
+
+-- Explicit RLS policy for profile selection
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.users;
+CREATE POLICY "Public profiles are viewable by everyone" ON public.users
+  FOR SELECT USING (is_public = true);
 
 -- Friend requests
 CREATE TABLE IF NOT EXISTS public.friend_requests (

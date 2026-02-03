@@ -114,3 +114,47 @@ export async function fetchPublicRepos(username: string, token: string) {
         return [];
     }
 }
+
+export async function fetchRepoStats(owner: string, repo: string, token: string | null) {
+    try {
+        const headers: HeadersInit = {
+            "Accept": "application/vnd.github.v3+json",
+        };
+        if (token) {
+            headers.Authorization = `Bearer \${token}`;
+        }
+
+        const response = await fetch(`\${GITHUB_API_BASE}/repos/\${owner}/\${repo}`, {
+            headers,
+            next: { revalidate: 60 }
+        });
+
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (error) {
+        console.error("GitHub Stats Error:", error);
+        return null;
+    }
+}
+
+export async function fetchRepoLanguages(owner: string, repo: string, token: string | null) {
+    try {
+        const headers: HeadersInit = {
+            "Accept": "application/vnd.github.v3+json",
+        };
+        if (token) {
+            headers.Authorization = `Bearer \${token}`;
+        }
+
+        const response = await fetch(`\${GITHUB_API_BASE}/repos/\${owner}/\${repo}/languages`, {
+            headers,
+            next: { revalidate: 60 }
+        });
+
+        if (!response.ok) return {};
+        return await response.json();
+    } catch (error) {
+        console.error("GitHub Languages Error:", error);
+        return {};
+    }
+}
