@@ -301,7 +301,7 @@ export default function CommunityPage() {
                                         <span className="text-[8px] text-gray-500 font-mono uppercase">NOT_IN_CORE</span>
                                     </div>
                                     <button
-                                        onClick={() => router.push(`/project/${friend.login}/analysis`)}
+                                        onClick={() => router.push(`/analysis?username=${friend.login}`)}
                                         className="w-full border border-white/30 text-white/50 py-2 text-[10px] font-bold tracking-widest hover:border-white hover:text-white transition-colors uppercase"
                                     >
                                         Inspect_
@@ -386,8 +386,8 @@ export default function CommunityPage() {
                             <button
                                 onClick={() => setViewMode('all')}
                                 className={`flex-1 py-2 text-xs font-bold tracking-widest uppercase transition-colors ${viewMode === 'all'
-                                        ? 'bg-white text-black'
-                                        : 'border border-white text-white hover:bg-white/10'
+                                    ? 'bg-white text-black'
+                                    : 'border border-white text-white hover:bg-white/10'
                                     }`}
                             >
                                 All Communities
@@ -395,8 +395,8 @@ export default function CommunityPage() {
                             <button
                                 onClick={() => setViewMode('following')}
                                 className={`flex-1 py-2 text-xs font-bold tracking-widest uppercase transition-colors ${viewMode === 'following'
-                                        ? 'bg-white text-black'
-                                        : 'border border-white text-white hover:bg-white/10'
+                                    ? 'bg-white text-black'
+                                    : 'border border-white text-white hover:bg-white/10'
                                     }`}
                             >
                                 Following ({followingCommunities.length})
@@ -435,8 +435,8 @@ export default function CommunityPage() {
                                                     <button
                                                         onClick={() => isFollowing ? handleUnfollow(group.id) : handleFollow(group.id)}
                                                         className={`px-4 py-2 text-xs font-bold tracking-widest transition-colors ${isFollowing
-                                                                ? 'bg-white text-black hover:bg-gray-200'
-                                                                : 'border border-white text-white hover:bg-white hover:text-black'
+                                                            ? 'bg-white text-black hover:bg-gray-200'
+                                                            : 'border border-white text-white hover:bg-white hover:text-black'
                                                             }`}
                                                     >
                                                         {isFollowing ? '✓' : '+'}
