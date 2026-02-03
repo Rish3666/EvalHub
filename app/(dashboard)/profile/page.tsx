@@ -32,6 +32,9 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true)
     const [workTimeDistribution, setWorkTimeDistribution] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
     const [codeFrequency, setCodeFrequency] = useState<'High' | 'Medium' | 'Low'>('Low')
+    const [showFollowers, setShowFollowers] = useState(false)
+    const [followersList, setFollowersList] = useState<any[]>([])
+    const [loadingFollowers, setLoadingFollowers] = useState(false)
     const supabase = createClient()
     const router = useRouter()
 
@@ -96,6 +99,27 @@ export default function ProfilePage() {
         router.push('/')
     }
 
+    const fetchFollowers = async () => {
+        if (followersList.length > 0) {
+            setShowFollowers(true)
+            return
+        }
+
+        setLoadingFollowers(true)
+        setShowFollowers(true)
+        try {
+            const res = await fetch('/api/github/followers')
+            if (res.ok) {
+                const data = await res.json()
+                setFollowersList(data)
+            }
+        } catch (error) {
+            console.error('Failed to fetch followers', error)
+        } finally {
+            setLoadingFollowers(false)
+        }
+    }
+
     if (loading) {
         return <div className="p-8 text-white font-mono animate-pulse">Loading Profile Data...</div>
     }
@@ -145,7 +169,10 @@ export default function ProfilePage() {
                                         <span className="text-xl font-bold mt-1">{user?.public_repos || 0}</span>
                                         <span className="text-[10px] uppercase tracking-widest mt-1">Repos</span>
                                     </button>
-                                    <button className="w-24 h-24 border border-white flex flex-col items-center justify-center bg-black hover:bg-white hover:text-black transition-colors duration-300">
+                                    <button
+                                        onClick={fetchFollowers}
+                                        className="w-24 h-24 border border-white flex flex-col items-center justify-center bg-black hover:bg-white hover:text-black transition-colors duration-300"
+                                    >
                                         <span className="material-symbols-outlined text-3xl">group</span>
                                         <span className="text-xl font-bold mt-1">{user?.followers || 0}</span>
                                         <span className="text-[10px] uppercase tracking-widest mt-1">Followers</span>
@@ -224,7 +251,10 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Stat Card 2 */}
-                    <div className="border border-white p-6 bg-black flex flex-col gap-4 rounded-none hover:bg-white hover:text-black transition-colors duration-300 group cursor-pointer">
+                    <div
+                        onClick={fetchFollowers}
+                        className="border border-white p-6 bg-black flex flex-col gap-4 rounded-none hover:bg-white hover:text-black transition-colors duration-300 group cursor-pointer"
+                    >
                         <div className="flex justify-between items-center">
                             <p className="text-sm font-bold tracking-widest opacity-70">Followers</p>
                             <span className="material-symbols-outlined group-hover:text-black text-white transition-colors">group</span>
@@ -252,6 +282,48 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-        </div>
+            {
+                showFollowers && (
+                    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowFollowers(false)}>
+                        <div className="bg-black border border-white w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+                                <h2 className="text-xl font-bold tracking-widest uppercase">Followers_List</h2>
+                                <button onClick={() => setShowFollowers(false)} className="text-white hover:text-gray-400">
+                                    <span className="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+
+                            <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                                {loadingFollowers ? (
+                                    <div className="text-center py-8 text-gray-500 font-mono animate-pulse">Syncing User Data...</div>
+                                ) : followersList.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 font-mono">No followers found.</div>
+                                ) : (
+                                    followersList.map((follower: any) => (
+                                        <div key={follower.id} className="flex items-center justify-between p-3 border border-white/10 hover:border-white hover:bg-white/5 transition-all group">
+                                            <div className="flex items-center gap-4">
+                                                <img src={follower.avatar_url} alt={follower.login} className="w-10 h-10 border border-white/20" />
+                                                <div>
+                                                    <p className="font-bold tracking-wide">@{follower.login}</p>
+                                                    <a href={follower.html_url} target="_blank" rel="noreferrer" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest">
+                                                        View_GitHub Profile
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => router.push(`/analysis?username=${follower.login}`)}
+                                                className="text-[10px] border border-white/30 px-2 py-1 hover:border-white hover:bg-white hover:text-black transition-all uppercase"
+                                            >
+                                                Inspect
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     )
 }
