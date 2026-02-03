@@ -18,15 +18,16 @@ export async function POST(request: Request) {
         }
 
         // Check if request already exists
+        console.log("Checking for existing request between:", { requesterId, targetUserId })
         const { data: existing, error: checkError } = await supabase
             .from('friend_requests')
             .select('*')
-            .or(`requester_id.eq.${requesterId},addressee_id.eq.${requesterId}`)
-            .or(`addressee_id.eq.${targetUserId},requester_id.eq.${targetUserId}`)
+            .or(`and(requester_id.eq.${requesterId},addressee_id.eq.${targetUserId}),and(requester_id.eq.${targetUserId},addressee_id.eq.${requesterId})`)
             .maybeSingle()
 
         if (checkError) {
             console.error("Check existing request error:", checkError)
+            return NextResponse.json({ error: 'Database check failed' }, { status: 500 })
         }
 
         if (existing) {

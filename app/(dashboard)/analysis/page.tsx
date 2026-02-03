@@ -86,8 +86,7 @@ function AnalysisContent() {
             const { data: existing, error } = await supabase
                 .from('friend_requests')
                 .select('status')
-                .or(`requester_id.eq.${session.user.id},addressee_id.eq.${session.user.id}`)
-                .or(`addressee_id.eq.${targetUser.id},requester_id.eq.${targetUser.id}`)
+                .or(`and(requester_id.eq.${session.user.id},addressee_id.eq.${targetUser.id}),and(requester_id.eq.${targetUser.id},addressee_id.eq.${session.user.id})`)
                 .maybeSingle()
 
             if (error) {
@@ -190,13 +189,17 @@ function AnalysisContent() {
         const loadingToast = toast.loading(`Connecting to ${searchedUser.login}...`)
 
         try {
+            console.log("Starting friend request flow...")
             const { data: { session } } = await supabase.auth.getSession()
             if (!session) {
-                toast.error("Please login to add friends")
+                console.warn("No session found in handleAddFriend")
+                toast.error("Please login to add friends", { id: loadingToast })
+                setIsSendingRequest(false)
                 return
             }
 
             // 1. Find the user in our database first
+            console.log("Looking up user in DB:", searchedUser.login)
             const { data: dbUser, error: dbError } = await supabase
                 .from('users')
                 .select('id')
@@ -204,17 +207,23 @@ function AnalysisContent() {
                 .maybeSingle()
 
             if (dbError || !dbUser) {
-                console.error("User lookup failed:", { dbError, login: searchedUser.login })
+                console.error("User lookup failed:", { dbError, dbUser, login: searchedUser.login })
                 toast.error(`${searchedUser.login} hasn't joined EvalHub yet.`, { id: loadingToast })
+                setIsSendingRequest(false)
                 return
             }
 
+            console.log("User found in DB:", dbUser.id)
+
             // 2. Send the internal friend request
+            console.log("Calling friend request API...")
             const res = await fetch('/api/friends/request', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ targetUserId: dbUser.id })
             })
+
+            console.log("API response status:", res.status)
 
             if (res.ok) {
                 console.log("Friend request sent successfully")
@@ -230,14 +239,15 @@ function AnalysisContent() {
                     console.error("Failed to parse error response:", parseErr)
                 }
                 toast.error(errorMsg, { id: loadingToast })
-                if (errorMsg.includes("already exists")) {
+                if (errorMsg.includes("already exists") || errorMsg.includes("already friends")) {
                     setRequestSent(true)
                 }
             }
         } catch (error) {
-            console.error(error)
+            console.error("Critical error in handleAddFriend:", error)
             toast.error("Error sending request.", { id: loadingToast })
         } finally {
+            console.log("Cleaning up friend request state")
             setIsSendingRequest(false)
         }
     }
