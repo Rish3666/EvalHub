@@ -19,16 +19,36 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { name, description, tags } = await request.json()
 
+  // Get current user for creator_id
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   // Create Community
   const { data, error } = await supabase
     .from('communities')
-    .insert([{ name, description, tags }])
+    .insert([{
+      name,
+      description,
+      tags,
+      creator_id: user.id
+    }])
     .select()
     .single()
 
   if (error) {
+    console.error('Community creation error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // Automatically join the creator to the community
+  await supabase
+    .from('community_members')
+    .insert([{
+      community_id: data.id,
+      user_id: user.id
+    }])
 
   return NextResponse.json(data)
 }
