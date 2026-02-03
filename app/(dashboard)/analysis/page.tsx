@@ -30,6 +30,19 @@ function AnalysisContent() {
     const [searchedUser, setSearchedUser] = useState<{ login: string, avatar_url: string } | null>(null)
     const [requestSent, setRequestSent] = useState(false)
     const [isSendingRequest, setIsSendingRequest] = useState(false)
+    const [loadingStage, setLoadingStage] = useState(0)
+
+    const loadingMessages = [
+        "Connecting to GitHub Mainframe...",
+        "Validating Repository Structure...",
+        "Downloading Source Code...",
+        "Parsing README.md & Metadata...",
+        "Initializing Gemini 1.5 Flash AI...",
+        "Analyzing Code Complexity...",
+        "Generating Technical Score Card...",
+        "Synthesizing Interview Questions...",
+        "Finalizing Report..."
+    ]
 
     const supabase = createClient()
     const searchParams = useSearchParams()
@@ -162,12 +175,20 @@ function AnalysisContent() {
         setSelectedRepo(repo)
         setAnalyzing(true)
         setAnalysis(null)
+        setLoadingStage(0)
+
+        // Cycle through loading messages
+        const interval = setInterval(() => {
+            setLoadingStage(prev => (prev < loadingMessages.length - 1 ? prev + 1 : prev))
+        }, 2000)
 
         try {
             const res = await fetch('/api/analyze', {
                 method: 'POST',
                 body: JSON.stringify({ repoName: repo.name, owner: repo.owner.login }),
             })
+
+            clearInterval(interval)
 
             if (res.ok) {
                 const data = await res.json()
@@ -177,6 +198,7 @@ function AnalysisContent() {
             }
         } catch (e) {
             console.error(e)
+            clearInterval(interval)
         } finally {
             setAnalyzing(false)
         }
@@ -333,13 +355,15 @@ function AnalysisContent() {
 
             {analyzing && (
                 <div className="min-h-[400px] flex flex-col items-center justify-center border border-dashed border-white/30 bg-black text-white p-12">
-                    <span className="material-symbols-outlined text-6xl animate-spin mb-4">data_usage</span>
-                    <h2 className="text-2xl font-bold tracking-widest animate-pulse">ANALYZING CODEBASE...</h2>
-                    <div className="mt-4 font-mono text-sm text-gray-400 space-y-1 text-center">
-                        <p>&gt; Reading File Structure...</p>
-                        <p>&gt; Parsing README.md...</p>
-                        <p>&gt; Generating Score Card...</p>
-                        <p>&gt; Synthesizing Interview Questions...</p>
+                    <span className="material-symbols-outlined text-6xl animate-spin mb-6">data_usage</span>
+                    <h2 className="text-2xl font-bold tracking-widest animate-pulse mb-2">ANALYZING CODEBASE...</h2>
+                    <p className="text-sm font-mono text-green-400 mb-8">&gt; {loadingMessages[loadingStage]}</p>
+
+                    <div className="w-full max-w-sm h-1 bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-white transition-all duration-500 ease-out"
+                            style={{ width: `${((loadingStage + 1) / loadingMessages.length) * 100}%` }}
+                        ></div>
                     </div>
                 </div>
             )}
