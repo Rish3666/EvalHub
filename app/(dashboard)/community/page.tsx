@@ -52,7 +52,7 @@ export default function CommunityPage() {
     async function fetchFriends() {
         setIsLoadingFriends(true)
         try {
-            const res = await fetch('/api/friends/list')
+            const res = await fetch('/api/friends/list/active')
             if (res.ok) {
                 const data = await res.json()
                 setFriends(data)
@@ -254,12 +254,20 @@ export default function CommunityPage() {
                                         <div className="h-12 w-12 border border-white flex items-center justify-center font-bold text-xl overflow-hidden bg-white">
                                             <img src={friend.avatar_url} alt={friend.username} className="w-full h-full object-cover" />
                                         </div>
-                                        <span className="material-symbols-outlined text-green-500 text-sm animate-pulse">fiber_manual_record</span>
+                                        {/* Show online indicator if 'online_status' is online OR last_seen is recent */}
+                                        {(friend.online_status === 'online' || (friend.last_seen && (new Date().getTime() - new Date(friend.last_seen).getTime() < 5 * 60 * 1000))) ? (
+                                            <span className="flex items-center gap-1 text-[10px] text-green-500 font-mono tracking-wider border border-green-500/30 px-1 bg-green-900/10">
+                                                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                                                ONLINE
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] text-gray-600 font-mono tracking-wider border border-gray-800 px-1">OFFLINE</span>
+                                        )}
                                     </div>
                                     <div className="mb-6">
                                         <h4 className="text-lg font-bold tracking-wider truncate">@{friend.username}</h4>
                                         <p className="text-xs text-gray-400 mt-1 tracking-widest truncate">
-                                            {friend.full_name || "Active Member"}
+                                            {friend.full_name || "Member"}
                                         </p>
                                     </div>
                                     <button
