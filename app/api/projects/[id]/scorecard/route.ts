@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { generateScorecard } from '@/lib/ai/claude';
+import { generateScorecard } from '@/lib/ai/gemini';
 import { generateShareToken } from '@/lib/utils';
 import { NextResponse } from 'next/server';
 

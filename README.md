@@ -5,7 +5,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-Database-green)](https://supabase.com/)
-[![Claude AI](https://img.shields.io/badge/Claude-Sonnet%204-purple)](https://www.anthropic.com/)
+[![Gemini AI](https://img.shields.io/badge/Gemini-1.5%20Pro-blue)](https://aistudio.google.com/)
 
 ## 🎯 What Makes DevShowcase Different?
 
@@ -22,7 +22,7 @@ DevShowcase is the **only platform** that:
 
 ### Phase 1: AI README Analysis ✅
 - Fetches README from GitHub repositories (supports main/master/develop branches)
-- Claude Sonnet 4.5 analyzes project complexity and architecture
+- Gemini 1.5 Flash analyzes project complexity and architecture
 - Generates 5 project-specific technical questions
 
 ### Phase 2: Interactive Q&A Interface ✅
@@ -50,7 +50,7 @@ DevShowcase is the **only platform** that:
 
 - Node.js 18+ and npm
 - Supabase account ([create one](https://supabase.com))
-- Anthropic API key ([get one](https://console.anthropic.com/))
+- Google Gemini API key ([get one](https://aistudio.google.com/))
 
 ### Installation
 
@@ -77,8 +77,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# Anthropic Claude API
-ANTHROPIC_API_KEY=sk-ant-your-api-key
+# Google Gemini API
+GOOGLE_GEMINI_API_KEY=your-gemini-api-key-here
 
 # App Configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -121,7 +121,7 @@ evalhub/
 │   └── ui/                   # shadcn/ui components
 ├── lib/                      # Utilities
 │   ├── ai/
-│   │   └── claude.ts         # Claude AI integration
+│   │   └── gemini.ts         # Gemini AI integration
 │   └── utils/
 │       ├── github.ts         # GitHub API utilities
 │       └── index.ts          # Helper functions
@@ -136,7 +136,7 @@ evalhub/
 - **Framework**: Next.js 15 (App Router, Server Components, Server Actions)
 - **Language**: TypeScript (strict mode)
 - **Database**: Supabase (PostgreSQL + Auth + RLS)
-- **AI**: Anthropic Claude Sonnet 4.5
+- **AI**: Google Gemini 1.5 Pro/Flash
 - **UI**: shadcn/ui + Radix UI + Tailwind CSS
 - **Deployment**: Vercel
 - **OG Images**: @vercel/og
@@ -192,7 +192,7 @@ Make sure to set these in your Vercel project settings:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `ANTHROPIC_API_KEY`
+- `GOOGLE_GEMINI_API_KEY`
 - `NEXT_PUBLIC_APP_URL`
 
 ## 🤝 Contributing
@@ -205,7 +205,7 @@ MIT License - feel free to use this project for your portfolio or commercial pro
 
 ## 🙏 Acknowledgments
 
-- [Anthropic](https://www.anthropic.com/) for Claude AI
+- [Google Gemini](https://aistudio.google.com/) for the AI engine
 - [Supabase](https://supabase.com/) for the backend infrastructure
 - [shadcn/ui](https://ui.shadcn.com/) for beautiful components
 - [Vercel](https://vercel.com/) for hosting

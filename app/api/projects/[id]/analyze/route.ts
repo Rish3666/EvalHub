@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { fetchREADME } from '@/lib/utils/github';
-import { analyzeREADMEWithFallback } from '@/lib/ai/claude';
+import { analyzeREADMEWithFallback } from '@/lib/ai/gemini';
 import { NextResponse } from 'next/server';
 
 export async function POST(
