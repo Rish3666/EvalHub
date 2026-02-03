@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ScorecardDisplay } from '@/components/ScorecardDisplay';
 import { ShareButtons } from '@/components/ShareButtons';
@@ -12,6 +12,7 @@ export default function ScorecardPage({
 }: {
     params: Promise<{ id: string }>;
 }) {
+    const { id: projectIdFromParams } = use(params);
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -20,20 +21,26 @@ export default function ScorecardPage({
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
 
-    useEffect(() => {
-        params.then((p) => {
-            setProjectId(p.id);
-            const shouldGenerate = searchParams.get('generate') === 'true';
+    const fetchScorecard = useCallback(async (id: string) => {
+        try {
+            const res = await fetch(`/api/projects/${id}/scorecard`);
+            const data = await res.json();
 
-            if (shouldGenerate) {
-                generateScorecard(p.id);
-            } else {
-                fetchScorecard(p.id);
-            }
-        });
-    }, [searchParams]);
+            if (!res.ok) throw new Error(data.error);
 
-    async function generateScorecard(id: string) {
+            setScorecard(data.scorecard);
+        } catch (error: any) {
+            toast({
+                title: 'Error loading scorecard',
+                description: error.message,
+                variant: 'destructive',
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    const generateScorecard = useCallback(async (id: string) => {
         setGenerating(true);
         try {
             const res = await fetch(`/api/projects/${id}/scorecard`, {
@@ -60,26 +67,18 @@ export default function ScorecardPage({
         } finally {
             setGenerating(false);
         }
-    }
+    }, [toast, fetchScorecard]);
 
-    async function fetchScorecard(id: string) {
-        try {
-            const res = await fetch(`/api/projects/${id}/scorecard`);
-            const data = await res.json();
+    useEffect(() => {
+        setProjectId(projectIdFromParams);
+        const shouldGenerate = searchParams.get('generate') === 'true';
 
-            if (!res.ok) throw new Error(data.error);
-
-            setScorecard(data.scorecard);
-        } catch (error: any) {
-            toast({
-                title: 'Error loading scorecard',
-                description: error.message,
-                variant: 'destructive',
-            });
-        } finally {
-            setLoading(false);
+        if (shouldGenerate) {
+            generateScorecard(projectIdFromParams);
+        } else {
+            fetchScorecard(projectIdFromParams);
         }
-    }
+    }, [projectIdFromParams, searchParams, generateScorecard, fetchScorecard]);
 
     if (loading || generating) {
         return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { QuestionCard } from '@/components/QuestionCard';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,7 @@ export default function AnalysisPage({
 }: {
     params: Promise<{ id: string }>;
 }) {
+    const { id: projectIdFromParams } = use(params);
     const router = useRouter();
     const { toast } = useToast();
     const [projectId, setProjectId] = useState<string>('');
@@ -31,14 +32,7 @@ export default function AnalysisPage({
     >({});
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        params.then((p) => {
-            setProjectId(p.id);
-            fetchQuestions(p.id);
-        });
-    }, []);
-
-    async function fetchQuestions(id: string) {
+    const fetchQuestions = useCallback(async (id: string) => {
         try {
             const res = await fetch(`/api/projects/${id}/questions`);
             const data = await res.json();
@@ -53,7 +47,12 @@ export default function AnalysisPage({
         } finally {
             setLoading(false);
         }
-    }
+    }, [toast]);
+
+    useEffect(() => {
+        setProjectId(projectIdFromParams);
+        fetchQuestions(projectIdFromParams);
+    }, [projectIdFromParams, fetchQuestions]);
 
     async function handleNext(answer: string, timeSpent: number) {
         // Save answer

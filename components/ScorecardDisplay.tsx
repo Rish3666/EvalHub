@@ -166,7 +166,7 @@ export function ScorecardDisplay({ scorecard, project }: ScorecardProps) {
                                         {gap.priority}
                                     </Badge>
                                 </div>
-                                <p className="text-sm text-muted-foreground leading-relaxed italic">"{gap.reason}"</p>
+                                <p className="text-sm text-muted-foreground leading-relaxed italic">&quot;{gap.reason}&quot;</p>
 
                                 <div className="space-y-2 pt-2">
                                     <div className="flex gap-2 items-start">

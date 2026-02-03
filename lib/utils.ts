@@ -6,7 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function generateShareToken(): string {
-    return crypto.randomBytes(16).toString('hex');
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
 }
 
 export function truncateText(text: string, maxLength: number): string {

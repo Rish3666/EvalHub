@@ -18,7 +18,7 @@ export default function HomePage() {
                 <div className="flex-1 space-y-4">
                     <Link href="/new-project" className="block">
                         <div className="text-xl text-muted-foreground py-2 cursor-pointer hover:text-foreground transition-colors">
-                            What's your next project? Start an analysis...
+                            What&apos;s your next project? Start an analysis...
                         </div>
                     </Link>
                     <div className="flex items-center justify-between pt-2 border-t border-border/50">
