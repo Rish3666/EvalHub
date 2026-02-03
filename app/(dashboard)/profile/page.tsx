@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow, getDay } from 'date-fns'
+import { useRouter } from 'next/navigation'
 
 interface GitHubUser {
     login: string;
@@ -32,6 +33,7 @@ export default function ProfilePage() {
     const [workTimeDistribution, setWorkTimeDistribution] = useState<number[]>([0, 0, 0, 0, 0, 0, 0])
     const [codeFrequency, setCodeFrequency] = useState<'High' | 'Medium' | 'Low'>('Low')
     const supabase = createClient()
+    const router = useRouter()
 
     useEffect(() => {
         async function fetchData() {
@@ -89,6 +91,11 @@ export default function ProfilePage() {
         fetchData()
     }, [])
 
+    const handleLogout = async () => {
+        await supabase.auth.signOut()
+        router.push('/')
+    }
+
     if (loading) {
         return <div className="p-8 text-white font-mono animate-pulse">Loading Profile Data...</div>
     }
@@ -100,14 +107,22 @@ export default function ProfilePage() {
     return (
         <div className="w-full pt-4">
             <div className="w-full mb-8 flex items-end justify-between border-b border-white/20 pb-4">
-                <div>
-                    <h1 className="text-white text-2xl md:text-4xl font-bold leading-tight tracking-wider">
+                <div className="flex-1">
+                    <h1 className="text-white text-2xl md:text-4xl font-bold leading-tight tracking-wider uppercase">
                         {user?.login || "User_Profile"}
                     </h1>
-                    <p className="text-gray-400 text-sm mt-2 tracking-widest font-mono">&gt; System Status: Online</p>
+                    <div className="flex items-center gap-4 mt-2">
+                        <p className="text-gray-400 text-sm tracking-widest font-mono">&gt; System Status: Online</p>
+                        <button
+                            onClick={handleLogout}
+                            className="text-[10px] text-red-500 border border-red-500/30 px-2 py-0.5 hover:bg-red-500 hover:text-white transition-all uppercase font-bold tracking-tighter"
+                        >
+                            Terminate_Session [Logout]
+                        </button>
+                    </div>
                 </div>
                 {user?.avatar_url && (
-                    <img src={user.avatar_url} alt="Profile" className="w-16 h-16 border-2 border-white rounded-none grayscale hover:grayscale-0 transition-all" />
+                    <img src={user.avatar_url} alt="Profile" className="w-16 h-16 border-2 border-white rounded-none grayscale hover:grayscale-0 transition-all ml-4" />
                 )}
             </div>
 
