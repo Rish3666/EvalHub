@@ -22,7 +22,7 @@ interface Message {
 export default function CommunityChatPage() {
     const params = useParams()
     const router = useRouter()
-    const communityId = params.id as string
+    const communityId = (Array.isArray(params.id) ? params.id[0] : params.id) || ''
     const [messages, setMessages] = useState<Message[]>([])
     const [newMessage, setNewMessage] = useState('')
     const [loading, setLoading] = useState(true)
