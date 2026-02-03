@@ -22,12 +22,39 @@ interface FeedItem {
     }
 }
 
+interface Interactions {
+    [key: number]: {
+        likes: number;
+        comments: number;
+        likedByMe: boolean;
+    }
+}
+
+interface Comment {
+    id: string;
+    content: string;
+    created_at: string;
+    user: {
+        username: string;
+        github_username: string;
+        avatar_url: string;
+    }
+}
+
 type FilterType = 'friends' | 'followers' | 'both';
 
 export default function FeedPage() {
     const [feedItems, setFeedItems] = useState<FeedItem[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<FilterType>('both')
+    const [interactions, setInteractions] = useState<Interactions>({})
+
+    // Comments State
+    const [activeCommentRepo, setActiveCommentRepo] = useState<FeedItem | null>(null)
+    const [comments, setComments] = useState<Comment[]>([])
+    const [loadingComments, setLoadingComments] = useState(false)
+    const [newComment, setNewComment] = useState('')
+
     const supabase = createClient()
 
     useEffect(() => {
@@ -112,8 +139,94 @@ export default function FeedPage() {
         return () => { ismounted = false }
     }, [filter]) // Re-run when filter changes
 
+    useEffect(() => {
+        if (feedItems.length > 0) {
+            fetchInteractions(feedItems.map(i => i.id))
+        }
+    }, [feedItems])
+
+    const fetchInteractions = async (repoIds: number[]) => {
+        try {
+            const res = await fetch(`/api/feed/interactions?repoIds=${repoIds.join(',')}`)
+            if (res.ok) {
+                const data = await res.json()
+                setInteractions(data)
+            }
+        } catch (error) {
+            console.error("Failed to fetch interactions", error)
+        }
+    }
+
+    const handleLike = async (repoId: number) => {
+        // Optimistic Update
+        setInteractions(prev => {
+            const current = prev[repoId] || { likes: 0, comments: 0, likedByMe: false }
+            return {
+                ...prev,
+                [repoId]: {
+                    ...current,
+                    likes: current.likedByMe ? current.likes - 1 : current.likes + 1,
+                    likedByMe: !current.likedByMe
+                }
+            }
+        })
+
+        try {
+            await fetch('/api/feed/like', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repoId })
+            })
+        } catch (error) {
+            console.error("Like failed", error)
+            // Revert on error?? skipping for now
+        }
+    }
+
+    const openComments = async (item: FeedItem) => {
+        setActiveCommentRepo(item)
+        setComments([])
+        setLoadingComments(true)
+        try {
+            const res = await fetch(`/api/feed/comments?repoId=${item.id}`)
+            if (res.ok) setComments(await res.json())
+        } catch (error) {
+            console.error("Failed comments", error)
+        } finally {
+            setLoadingComments(false)
+        }
+    }
+
+    const postComment = async () => {
+        if (!activeCommentRepo || !newComment.trim()) return
+
+        try {
+            const res = await fetch('/api/feed/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repoId: activeCommentRepo.id, content: newComment })
+            })
+
+            if (res.ok) {
+                const comment = await res.json()
+                setComments(prev => [...prev, comment])
+                setNewComment('')
+                // Update count
+                setInteractions(prev => ({
+                    ...prev,
+                    [activeCommentRepo.id]: {
+                        ...prev[activeCommentRepo.id],
+                        comments: prev[activeCommentRepo.id].comments + 1
+                    }
+                }))
+            }
+        } catch (error) {
+            console.error("Post comment failed", error)
+        }
+    }
+
     return (
-        <div className="w-full max-w-[800px] mx-auto">
+        <div className="w-full max-w-[800px] mx-auto relative">
             <div className="w-full pt-4 border-b border-white/20 pb-6 mb-12">
                 <div className="flex justify-between items-start mb-4">
                     <h1 className="text-white text-3xl md:text-5xl font-bold leading-tight tracking-wider mb-2">
@@ -222,22 +335,87 @@ export default function FeedPage() {
                             </div>
 
                             {/* Actions */}
+                            {/* Actions */}
                             <div className="flex items-center gap-6 px-2">
-                                <button className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group/btn">
-                                    <span className="material-symbols-outlined text-xl group-hover/btn:text-red-500 transition-colors">favorite</span>
+                                <button
+                                    onClick={() => handleLike(item.id)}
+                                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group/btn"
+                                >
+                                    <span className={cn("material-symbols-outlined text-xl transition-colors", interactions[item.id]?.likedByMe ? "text-red-500 fill-current" : "group-hover/btn:text-red-500")}>
+                                        {interactions[item.id]?.likedByMe ? 'favorite' : 'favorite'}
+                                    </span>
+                                    <span className="text-xs font-mono">{interactions[item.id]?.likes || 0}</span>
                                 </button>
-                                <button className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                                <button
+                                    onClick={() => openComments(item)}
+                                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                                >
                                     <span className="material-symbols-outlined text-xl">chat_bubble</span>
+                                    <span className="text-xs font-mono">{interactions[item.id]?.comments || 0}</span>
                                 </button>
-                                <button className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors ml-auto">
-                                    <span className="material-symbols-outlined text-xl">share</span>
-                                </button>
+                                {/* Removed Share Button as requested */}
                             </div>
                         </article>
                     ))
                 )}
             </div>
 
+            {/* Comments Modal (Custom implementation to avoid heavy UI lib dependency if not needed, but sticking to simple overlay) */}
+            {activeCommentRepo && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setActiveCommentRepo(null)}>
+                    <div className="bg-black border border-white w-full max-w-lg h-[600px] flex flex-col relative" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="p-4 border-b border-white/20 flex justify-between items-center">
+                            <h3 className="font-bold tracking-widest uppercase truncate max-w-[80%]">Comments // {activeCommentRepo.name}</h3>
+                            <button onClick={() => setActiveCommentRepo(null)} className="text-gray-400 hover:text-white">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        {/* List */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                            {loadingComments ? (
+                                <div className="text-center py-10 text-gray-500 font-mono animate-pulse">Loading comms...</div>
+                            ) : comments.length === 0 ? (
+                                <div className="text-center py-10 text-gray-500 font-mono">No comments yet. Be the first.</div>
+                            ) : (
+                                comments.map(c => (
+                                    <div key={c.id} className="flex gap-3 items-start animate-in slide-in-from-bottom-2">
+                                        <img src={c.user.avatar_url || "/placeholder-user.png"} className="w-8 h-8 rounded-none border border-white/30" />
+                                        <div className="flex-1">
+                                            <div className="flex items-baseline justify-between">
+                                                <span className="font-bold text-xs tracking-wider">@{c.user.github_username || c.user.username}</span>
+                                                <span className="text-[10px] text-gray-500 font-mono">{formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}</span>
+                                            </div>
+                                            <p className="text-sm text-gray-300 mt-1 leading-relaxed">{c.content}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Input */}
+                        <div className="p-4 border-t border-white/20 bg-black">
+                            <div className="flex gap-2">
+                                <input
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                    placeholder="Write a comment..."
+                                    className="flex-1 bg-transparent border border-white/30 p-2 text-sm text-white focus:border-white focus:outline-none placeholder:text-gray-600 font-mono"
+                                    onKeyDown={(e) => e.key === 'Enter' && postComment()}
+                                />
+                                <button
+                                    onClick={postComment}
+                                    disabled={!newComment.trim()}
+                                    className="bg-white text-black px-4 font-bold tracking-widest uppercase hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs transition-colors"
+                                >
+                                    Post
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
