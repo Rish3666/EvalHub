@@ -30,8 +30,21 @@ export function getScoreColor(score: number): string {
     return 'text-orange-600';
 }
 
+
 export function getPriorityColor(priority: string): 'destructive' | 'default' | 'outline' {
     if (priority === 'High') return 'destructive';
     if (priority === 'Medium') return 'default';
     return 'outline';
+}
+
+export const getURL = () => {
+    let url =
+        process.env.NEXT_PUBLIC_SITE_URL ?? // Set this for your custom domain.
+        process.env.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
+        'http://localhost:3000/'
+    // Make sure to include `https://` when not localhost.
+    url = url.includes('http') ? url : `https://${url}`
+    // Make sure to include a trailing `/`.
+    url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
+    return url
 }

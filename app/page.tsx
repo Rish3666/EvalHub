@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import Spline from '@splinetool/react-spline'
 import { Github } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { getURL } from '@/lib/utils'
 
 export default function LandingPage() {
     const supabase = createClient()
@@ -13,7 +14,7 @@ export default function LandingPage() {
         await supabase.auth.signInWithOAuth({
             provider: 'github',
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
+                redirectTo: `${getURL()}auth/callback`,
             }
         })
     }
