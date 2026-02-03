@@ -99,7 +99,7 @@ export default function CompanyMatchPage() {
                     </div>
                     <div className="text-right">
                         <div className="text-[10px] text-gray-500 uppercase tracking-widest">Protocol: COMPATIBILITY_V4.2</div>
-                        <div className="text-[10px] text-gray-500 uppercase tracking-widest">Hash: {id.toString().slice(0, 8)}...</div>
+                        <div className="text-[10px] text-gray-500 uppercase tracking-widest">Hash: {id ? (Array.isArray(id) ? id[0] : id).toString().slice(0, 8) : 'N/A'}...</div>
                     </div>
                 </div>
 
