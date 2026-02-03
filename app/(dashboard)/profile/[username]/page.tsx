@@ -185,29 +185,46 @@ export default function ProfilePage({ params }: { params: { username: string } }
     const handleSendRequest = async () => {
         if (!currentUser || !profile) return
         setRequestLoading(true)
-        const { error, data } = await supabase
-            .from('friend_requests')
-            .insert({
-                requester_id: currentUser.id,
-                addressee_id: profile.id,
-            })
-            .select('id, requester_id, addressee_id, status')
-            .single()
 
-        if (error) {
+        try {
+            const res = await fetch('/api/friends/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ targetUserId: profile.id })
+            })
+
+            if (res.ok) {
+                // Refresh the friend request state
+                const { data } = await supabase
+                    .from('friend_requests')
+                    .select('id, requester_id, addressee_id, status')
+                    .or(
+                        `and(requester_id.eq.${currentUser.id},addressee_id.eq.${profile.id}),and(requester_id.eq.${profile.id},addressee_id.eq.${currentUser.id})`
+                    )
+                    .maybeSingle()
+
+                setFriendRequest(data || null)
+                toast({
+                    title: 'Friend request sent',
+                    description: `You can follow up with @${profile.username} from their profile.`,
+                })
+            } else {
+                const error = await res.json()
+                toast({
+                    title: 'Unable to send request',
+                    description: error.error || 'Failed to send request',
+                    variant: 'destructive',
+                })
+            }
+        } catch (error) {
             toast({
-                title: 'Unable to send request',
-                description: error.message,
+                title: 'Network error',
+                description: 'Failed to send friend request',
                 variant: 'destructive',
             })
-        } else {
-            setFriendRequest(data)
-            toast({
-                title: 'Friend request sent',
-                description: `You can follow up with @${profile.username} from their profile.`,
-            })
+        } finally {
+            setRequestLoading(false)
         }
-        setRequestLoading(false)
     }
 
     const displayName = profile?.full_name || profile?.username || MOCK_USER.name
@@ -281,18 +298,18 @@ export default function ProfilePage({ params }: { params: { username: string } }
                             {friendButtonState ? (() => {
                                 const Icon = friendButtonState.icon
                                 return (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="hidden sm:flex"
-                                    onClick={() => {
-                                        if (!friendButtonState.disabled) handleSendRequest()
-                                    }}
-                                    disabled={friendButtonState.disabled || requestLoading}
-                                >
-                                    <Icon className="mr-2 h-4 w-4" />
-                                    {requestLoading ? 'Sending...' : friendButtonState.label}
-                                </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="hidden sm:flex"
+                                        onClick={() => {
+                                            if (!friendButtonState.disabled) handleSendRequest()
+                                        }}
+                                        disabled={friendButtonState.disabled || requestLoading}
+                                    >
+                                        <Icon className="mr-2 h-4 w-4" />
+                                        {requestLoading ? 'Sending...' : friendButtonState.label}
+                                    </Button>
                                 )
                             })() : (
                                 <Button variant="outline" size="sm" className="hidden sm:flex">
@@ -303,17 +320,17 @@ export default function ProfilePage({ params }: { params: { username: string } }
                             {friendButtonState ? (() => {
                                 const Icon = friendButtonState.icon
                                 return (
-                                <Button
-                                    size="icon"
-                                    variant="outline"
-                                    className="sm:hidden"
-                                    onClick={() => {
-                                        if (!friendButtonState.disabled) handleSendRequest()
-                                    }}
-                                    disabled={friendButtonState.disabled || requestLoading}
-                                >
-                                    <Icon className="h-4 w-4" />
-                                </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="sm:hidden"
+                                        onClick={() => {
+                                            if (!friendButtonState.disabled) handleSendRequest()
+                                        }}
+                                        disabled={friendButtonState.disabled || requestLoading}
+                                    >
+                                        <Icon className="h-4 w-4" />
+                                    </Button>
                                 )
                             })() : (
                                 <Button size="icon" variant="outline" className="sm:hidden">
