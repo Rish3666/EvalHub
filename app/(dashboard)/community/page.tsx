@@ -22,20 +22,32 @@ export default function CommunityPage() {
     const [suggestions, setSuggestions] = useState<any[]>([])
     const [isLoadingFriends, setIsLoadingFriends] = useState(true)
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true)
-    const [groups, setGroups] = useState<Community[]>([]) // Added groups state
-    const [isLoading, setIsLoading] = useState(true) // Added isLoading for communities
+    const [groups, setGroups] = useState<Community[]>([])
+    const [followingCommunities, setFollowingCommunities] = useState<Community[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [isLoadingFollowing, setIsLoadingFollowing] = useState(true)
     const [newGroupName, setNewGroupName] = useState('')
     const [newGroupDesc, setNewGroupDesc] = useState('')
     const [newGroupTags, setNewGroupTags] = useState('')
     const [isCreating, setIsCreating] = useState(false)
-    const supabase = createClient() // Added supabase client
+    const [searchQuery, setSearchQuery] = useState('')
+    const [viewMode, setViewMode] = useState<'all' | 'following'>('all')
+    const supabase = createClient()
     const router = useRouter()
 
     useEffect(() => {
         fetchCommunities()
+        fetchFollowingCommunities()
         fetchFriends()
         fetchGitHubSuggestions()
     }, [])
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            fetchCommunities()
+        }, 300)
+        return () => clearTimeout(delayDebounceFn)
+    }, [searchQuery])
 
     async function fetchFriends() {
         setIsLoadingFriends(true)
@@ -75,7 +87,10 @@ export default function CommunityPage() {
 
     async function fetchCommunities() {
         try {
-            const res = await fetch('/api/communities')
+            const url = searchQuery
+                ? `/api/communities?search=${encodeURIComponent(searchQuery)}`
+                : '/api/communities'
+            const res = await fetch(url)
             if (res.ok) {
                 const data = await res.json()
                 setGroups(data)
@@ -84,6 +99,20 @@ export default function CommunityPage() {
             console.error("Failed to fetch communities", error)
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    async function fetchFollowingCommunities() {
+        try {
+            const res = await fetch('/api/communities/following')
+            if (res.ok) {
+                const data = await res.json()
+                setFollowingCommunities(data)
+            }
+        } catch (error) {
+            console.error("Failed to fetch following communities", error)
+        } finally {
+            setIsLoadingFollowing(false)
         }
     }
 
@@ -100,6 +129,35 @@ export default function CommunityPage() {
             }
         } catch (error) {
             toast.error("Network error joining community")
+        }
+    }
+
+    const handleFollow = async (communityId: string) => {
+        try {
+            const res = await fetch(`/api/communities/${communityId}/follow`, { method: 'POST' })
+            if (res.ok) {
+                toast.success('Following community!')
+                fetchFollowingCommunities()
+            } else {
+                const err = await res.json()
+                toast.error(err.error || 'Failed to follow')
+            }
+        } catch (error) {
+            toast.error("Network error")
+        }
+    }
+
+    const handleUnfollow = async (communityId: string) => {
+        try {
+            const res = await fetch(`/api/communities/${communityId}/follow`, { method: 'DELETE' })
+            if (res.ok) {
+                toast.success('Unfollowed community')
+                fetchFollowingCommunities()
+            } else {
+                toast.error('Failed to unfollow')
+            }
+        } catch (error) {
+            toast.error("Network error")
         }
     }
 
@@ -255,90 +313,174 @@ export default function CommunityPage() {
                 </div>
 
                 <div className="lg:col-span-4 flex flex-col gap-6">
-                    {/* ... existing Groups section ... */}
-                    <div className="flex items-center justify-between mb-2 border-b border-white/20 pb-2">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-sm">groups</span>
-                            <h3 className="text-sm font-bold tracking-widest uppercase">Groups</h3>
+                    {/* Communities Section with Search */}
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between border-b border-white/20 pb-2">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm">groups</span>
+                                <h3 className="text-sm font-bold tracking-widest uppercase">Communities</h3>
+                            </div>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <button className="text-[10px] text-white border border-white px-2 py-0.5 hover:bg-white hover:text-black transition-colors font-bold tracking-tighter">
+                                        Initialize_
+                                    </button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-black border border-white text-white font-mono p-8 rounded-none max-w-md">
+                                    <DialogHeader className="mb-6">
+                                        <DialogTitle className="text-xl font-bold tracking-widest border-b border-white/20 pb-2 uppercase text-white">Create_New_Network</DialogTitle>
+                                    </DialogHeader>
+                                    <form onSubmit={handleCreateGroup} className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-gray-400 uppercase tracking-widest">Node_Name</label>
+                                            <Input
+                                                value={newGroupName}
+                                                onChange={(e) => setNewGroupName(e.target.value)}
+                                                placeholder="e.g., Rust_Explorers"
+                                                className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 w-full"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-gray-400 uppercase tracking-widest">Protocols (Tags)</label>
+                                            <Input
+                                                value={newGroupTags}
+                                                onChange={(e) => setNewGroupTags(e.target.value)}
+                                                placeholder="e.g., Rust, WASM, Low-Level"
+                                                className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 w-full"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-gray-400 uppercase tracking-widest">Entry_Log (Description)</label>
+                                            <Textarea
+                                                value={newGroupDesc}
+                                                onChange={(e) => setNewGroupDesc(e.target.value)}
+                                                placeholder="What is this community about?"
+                                                className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 min-h-[100px] w-full"
+                                                required
+                                            />
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            disabled={isCreating}
+                                            className="w-full bg-white text-black rounded-none font-bold tracking-widest hover:bg-gray-300 transition-colors py-6 uppercase"
+                                        >
+                                            {isCreating ? 'Deploying...' : 'Establish_Node'}
+                                        </Button>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
                         </div>
 
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <button className="text-[10px] text-white border border-white px-2 py-0.5 hover:bg-white hover:text-black transition-colors font-bold tracking-tighter">
-                                    Initialize_
-                                </button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-black border border-white text-white font-mono p-8 rounded-none max-w-md">
-                                <DialogHeader className="mb-6">
-                                    <DialogTitle className="text-xl font-bold tracking-widest border-b border-white/20 pb-2 uppercase text-white">Create_New_Network</DialogTitle>
-                                </DialogHeader>
-                                <form onSubmit={handleCreateGroup} className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-gray-400 uppercase tracking-widest">Node_Name</label>
-                                        <Input
-                                            value={newGroupName}
-                                            onChange={(e) => setNewGroupName(e.target.value)}
-                                            placeholder="e.g., Rust_Explorers"
-                                            className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 w-full"
-                                            required
-                                        />
+                        {/* Search Bar */}
+                        <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search communities..."
+                            className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 font-mono text-xs uppercase tracking-widest"
+                        />
+
+                        {/* View Mode Tabs */}
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setViewMode('all')}
+                                className={`flex-1 py-2 text-xs font-bold tracking-widest uppercase transition-colors ${viewMode === 'all'
+                                        ? 'bg-white text-black'
+                                        : 'border border-white text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                All Communities
+                            </button>
+                            <button
+                                onClick={() => setViewMode('following')}
+                                className={`flex-1 py-2 text-xs font-bold tracking-widest uppercase transition-colors ${viewMode === 'following'
+                                        ? 'bg-white text-black'
+                                        : 'border border-white text-white hover:bg-white/10'
+                                    }`}
+                            >
+                                Following ({followingCommunities.length})
+                            </button>
+                        </div>
+
+                        {/* Communities List */}
+                        <div className="flex flex-col gap-3">
+                            {viewMode === 'all' ? (
+                                isLoading ? (
+                                    <div className="text-xs text-gray-500 font-mono animate-pulse">Loading Communities...</div>
+                                ) : groups.length === 0 ? (
+                                    <div className="text-xs text-gray-500 font-mono border border-dashed border-gray-800 p-6 text-center">
+                                        {searchQuery ? 'NO_RESULTS_FOUND' : 'NO_COMMUNITIES_INITIALIZED'}
+                                        <p className="text-[10px] mt-2 opacity-50 italic">
+                                            {searchQuery ? 'Try a different search term.' : 'Start a new node to begin networking.'}
+                                        </p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-gray-400 uppercase tracking-widest">Protocols (Tags)</label>
-                                        <Input
-                                            value={newGroupTags}
-                                            onChange={(e) => setNewGroupTags(e.target.value)}
-                                            placeholder="e.g., Rust, WASM, Low-Level"
-                                            className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 w-full"
-                                            required
-                                        />
+                                ) : (
+                                    groups.map((group) => {
+                                        const isFollowing = followingCommunities.some(c => c.id === group.id)
+                                        return (
+                                            <div key={group.id} className="border border-white p-5 hover:bg-white/5 transition-all group flex flex-col gap-4 bg-black">
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className="text-sm font-bold tracking-widest">{group.name}</h4>
+                                                    <span className="text-[10px] text-gray-400 border border-gray-600 px-1 py-0.5">{group.tags}</span>
+                                                </div>
+                                                <p className="text-xs text-gray-400 font-mono leading-relaxed">{group.description}</p>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handleJoin(group.id)}
+                                                        className="flex-1 border border-white text-white py-2 text-xs font-bold tracking-widest hover:bg-white hover:text-black transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        Join_ <span className="material-symbols-outlined text-[14px]">login</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => isFollowing ? handleUnfollow(group.id) : handleFollow(group.id)}
+                                                        className={`px-4 py-2 text-xs font-bold tracking-widest transition-colors ${isFollowing
+                                                                ? 'bg-white text-black hover:bg-gray-200'
+                                                                : 'border border-white text-white hover:bg-white hover:text-black'
+                                                            }`}
+                                                    >
+                                                        {isFollowing ? '✓' : '+'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )
+                                    })
+                                )
+                            ) : (
+                                isLoadingFollowing ? (
+                                    <div className="text-xs text-gray-500 font-mono animate-pulse">Loading...</div>
+                                ) : followingCommunities.length === 0 ? (
+                                    <div className="text-xs text-gray-500 font-mono border border-dashed border-gray-800 p-6 text-center">
+                                        NOT_FOLLOWING_ANY
+                                        <p className="text-[10px] mt-2 opacity-50 italic">Follow communities to see them here.</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-gray-400 uppercase tracking-widest">Entry_Log (Description)</label>
-                                        <Textarea
-                                            value={newGroupDesc}
-                                            onChange={(e) => setNewGroupDesc(e.target.value)}
-                                            placeholder="What is this community about?"
-                                            className="bg-black border-white rounded-none text-white focus-visible:ring-0 focus-visible:border-white transition-all placeholder:text-gray-700 min-h-[100px] w-full"
-                                            required
-                                        />
-                                    </div>
-                                    <Button
-                                        type="submit"
-                                        disabled={isCreating}
-                                        className="w-full bg-white text-black rounded-none font-bold tracking-widest hover:bg-gray-300 transition-colors py-6 uppercase"
-                                    >
-                                        {isCreating ? 'Deploying...' : 'Establish_Node'}
-                                    </Button>
-                                </form>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                        {isLoading ? (
-                            <div className="text-xs text-gray-500 font-mono animate-pulse">Loading Communities...</div>
-                        ) : groups.length === 0 ? (
-                            <div className="text-xs text-gray-500 font-mono border border-dashed border-gray-800 p-6 text-center">
-                                NO_COMMUNITIES_INITIALIZED
-                                <p className="text-[10px] mt-2 opacity-50 italic">Start a new node to begin networking.</p>
-                            </div>
-                        ) : (
-                            groups.map((group) => (
-                                <div key={group.id} className="border border-white p-5 hover:bg-white/5 transition-all group flex flex-col gap-4 bg-black">
-                                    <div className="flex justify-between items-start">
-                                        <h4 className="text-sm font-bold tracking-widest">{group.name}</h4>
-                                        <span className="text-[10px] text-gray-400 border border-gray-600 px-1 py-0.5">{group.tags}</span>
-                                    </div>
-                                    <p className="text-xs text-gray-400 font-mono leading-relaxed">{group.description}</p>
-                                    <button
-                                        onClick={() => handleJoin(group.id)}
-                                        className="w-full border border-white text-white py-2 text-xs font-bold tracking-widest hover:bg-white hover:text-black transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        Join_ <span className="material-symbols-outlined text-[14px]">login</span>
-                                    </button>
-                                </div>
-                            ))
-                        )}
+                                ) : (
+                                    followingCommunities.map((group) => (
+                                        <div key={group.id} className="border border-white p-5 hover:bg-white/5 transition-all group flex flex-col gap-4 bg-black">
+                                            <div className="flex justify-between items-start">
+                                                <h4 className="text-sm font-bold tracking-widest">{group.name}</h4>
+                                                <span className="text-[10px] text-gray-400 border border-gray-600 px-1 py-0.5">{group.tags}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-400 font-mono leading-relaxed">{group.description}</p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleJoin(group.id)}
+                                                    className="flex-1 border border-white text-white py-2 text-xs font-bold tracking-widest hover:bg-white hover:text-black transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    Join_ <span className="material-symbols-outlined text-[14px]">login</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleUnfollow(group.id)}
+                                                    className="px-4 py-2 text-xs font-bold tracking-widest bg-white text-black hover:bg-gray-200 transition-colors"
+                                                >
+                                                    ✓
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

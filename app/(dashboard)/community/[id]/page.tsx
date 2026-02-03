@@ -441,7 +441,7 @@ export default function CommunityChatPage() {
             {/* Mention List Dropdown */}
             {showMentions && filteredMentionMembers.length > 0 && (
                 <div className="absolute left-6 bottom-32 w-72 bg-black border-2 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.1)] z-50 overflow-hidden animate-in slide-in-from-bottom-2">
-                    <div className="bg-white text-black px-4 py-2 text-[10px] font-black uppercase tracking-widest flex justify-between items-center">
+                    <div className="bg-black border-b border-white text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest flex justify-between items-center">
                         <span>Mention_Person</span>
                         <AtSign className="w-3 h-3" />
                     </div>
@@ -449,7 +449,7 @@ export default function CommunityChatPage() {
                         {filteredMentionMembers.map((member, i) => (
                             <div
                                 key={member.id || i}
-                                className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${i === mentionIndex ? 'bg-white text-black' : 'hover:bg-white/10'}`}
+                                className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${i === mentionIndex ? 'bg-white text-black' : 'hover:bg-white/10 text-white'}`}
                                 onClick={() => insertMention(member.github_username)}
                                 onMouseEnter={() => setMentionIndex(i)}
                             >

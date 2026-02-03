@@ -3,10 +3,19 @@ import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
-  const { data, error } = await supabase
+  const { searchParams } = new URL(request.url)
+  const search = searchParams.get('search')
+
+  let query = supabase
     .from('communities')
     .select('*')
-    .order('created_at', { ascending: false })
+
+  // Add search filter if provided
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,tags.ilike.%${search}%`)
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
