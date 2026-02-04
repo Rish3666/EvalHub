@@ -126,7 +126,10 @@ function useChatProtocol(communityId: string) {
                     const completeMsg = { ...newMsg, users: userData }
 
                     setMessages(prev => {
-                        // Avoid duplicates if possible, or just append
+                        // Deduplication: Check if ID exists
+                        if (prev.some(m => m.id === completeMsg.id)) {
+                            return prev;
+                        }
                         return [...prev, completeMsg as any]
                     })
                 }
