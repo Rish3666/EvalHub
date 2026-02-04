@@ -44,7 +44,13 @@ export async function POST(request: Request) {
             // 3. Fetch commits for quality analysis
             commits = await fetchRepoCommits(repoUrl);
 
-            // 4. Run Enhanced Quality Analysis (First, to get scores for hard indexing)
+            // 4. Check for logic issues
+            const defaultBranch = metadata?.default_branch;
+            if (!defaultBranch) {
+                console.error(`[Analysis] Missing default_branch for ${repoFullName}. Metadata keys: ${Object.keys(metadata || {}).join(',')}`);
+            }
+
+            // 5. Run Enhanced Quality Analysis (First, to get scores for hard indexing)
             const qualityAnalysis = await analyzeRepositoryQuality(
                 owner,
                 repo,

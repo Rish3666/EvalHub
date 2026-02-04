@@ -25,7 +25,7 @@ export async function fetchREADME(repoUrl: string): Promise<string | null> {
                     {
                         headers: {
                             'User-Agent': 'DevShowcase-AI-Analyzer',
-                            ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
+                            ...(process.env.GITHUB_PERSONAL_ACCESS_TOKEN ? { Authorization: `token ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}` } : {}),
                         },
                         // Add timeout
                         signal: AbortSignal.timeout(10000), // 10 second timeout
@@ -62,7 +62,7 @@ export async function fetchRepoMetadata(repoUrl: string): Promise<any | null> {
             headers: {
                 'Accept': 'application/vnd.github.v3+json',
                 'User-Agent': 'DevShowcase-AI-Analyzer',
-                ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
+                ...(process.env.GITHUB_PERSONAL_ACCESS_TOKEN ? { Authorization: `token ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}` } : {}),
             },
             signal: AbortSignal.timeout(10000),
         });
@@ -88,7 +88,7 @@ export async function fetchRepoLanguages(repoUrl: string): Promise<Record<string
             headers: {
                 'Accept': 'application/vnd.github.v3+json',
                 'User-Agent': 'DevShowcase-AI-Analyzer',
-                ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
+                ...(process.env.GITHUB_PERSONAL_ACCESS_TOKEN ? { Authorization: `token ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}` } : {}),
             },
             signal: AbortSignal.timeout(10000),
         });
@@ -143,7 +143,7 @@ export async function fetchRepoCommits(repoUrl: string): Promise<any[] | null> {
             headers: {
                 'Accept': 'application/vnd.github.v3+json',
                 'User-Agent': 'DevShowcase-AI-Analyzer',
-                ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
+                ...(process.env.GITHUB_PERSONAL_ACCESS_TOKEN ? { Authorization: `token ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}` } : {}),
             },
             signal: AbortSignal.timeout(10000),
         });

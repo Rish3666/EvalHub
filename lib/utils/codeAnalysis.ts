@@ -27,33 +27,64 @@ interface RepoAnalysisResult {
 /**
  * Fetch repository file tree
  */
-export async function fetchRepoTree(owner: string, repo: string, token?: string): Promise<any> {
+/**
+ * Fetch repository file tree
+ */
+export async function fetchRepoTree(owner: string, repo: string, token?: string, defaultBranch: string = 'main'): Promise<any> {
     const headers: HeadersInit = {
         'Accept': 'application/vnd.github.v3+json',
     };
 
     if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        // Use 'token' prefix which is standard for GitHub PATs (though Bearer often works, token is safer for classic PATs)
+        headers['Authorization'] = `token ${token}`;
     }
 
-    const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`,
-        { headers }
-    );
-
-    if (!response.ok) {
-        // Try 'master' branch if 'main' fails
-        const masterResponse = await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`,
-            { headers }
+    // 1. Try the provided default branch
+    // console.log(`[fetchRepoTree] Fetching tree for ${owner}/${repo} on '${defaultBranch}'`);
+    try {
+        const response = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
+            {
+                headers,
+                // Increase timeout to 30s for large repos (like Metasploit)
+                signal: AbortSignal.timeout(30000)
+            }
         );
-        if (!masterResponse.ok) {
-            throw new Error('Failed to fetch repository tree');
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.truncated) console.warn(`[fetchRepoTree] Tree truncated for ${owner}/${repo}`);
+            return data;
         }
-        return masterResponse.json();
+
+        console.warn(`[fetchRepoTree] Failed primary branch '${defaultBranch}'. Status: ${response.status}`);
+    } catch (e) {
+        console.error(`[fetchRepoTree] Error fetching branch '${defaultBranch}':`, e);
     }
 
-    return response.json();
+    // 2. Fallback: Try 'main'
+    if (defaultBranch !== 'main') {
+        try {
+            const mainRes = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`,
+                { headers, signal: AbortSignal.timeout(30000) }
+            );
+            if (mainRes.ok) return mainRes.json();
+        } catch (e) { /* ignore */ }
+    }
+
+    // 3. Fallback: Try 'master'
+    try {
+        const masterRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`,
+            { headers, signal: AbortSignal.timeout(30000) }
+        );
+        if (masterRes.ok) return masterRes.json();
+    } catch (e) { /* ignore */ }
+
+    console.error(`[fetchRepoTree] All fetch attempts failed for ${owner}/${repo}`);
+    throw new Error('Failed to fetch repository tree (all branches failed)');
 }
 
 /**
@@ -324,8 +355,9 @@ export async function analyzeRepositoryQuality(
     token?: string
 ): Promise<RepoAnalysisResult> {
     try {
-        // Fetch repository tree
-        const tree = await fetchRepoTree(owner, repo, token);
+        // Fetch repository tree using the correct default branch
+        const defaultBranch = metadata?.default_branch || 'main';
+        const tree = await fetchRepoTree(owner, repo, token, defaultBranch);
 
         // Calculate individual scores
         const readmeQuality = analyzeREADMEQuality(readme);
@@ -338,17 +370,18 @@ export async function analyzeRepositoryQuality(
         const testCoverage = analyzeTestCoverage(tree);
 
         // Custom weighted quality score
-        // README: 20%, Backend: 40%, Frontend: 0%, Documentation: 5%, API: 5%,
-        // Commit Activity: 10%, Code Organization: 10%, Test Coverage: 10%
+        // README: 20%, Backend: 30%, Frontend: 10%, Documentation: 10%, API: 5%,
+        // Commit Activity: 15%, Code Organization: 5%, Test Coverage: 5%
+        // Adjusted weights to be more balanced
         const qualityScore = Math.round(
             readmeQuality * 0.20 +
-            backendQuality * 0.40 +
-            frontendQuality * 0.00 +
-            documentationQuality * 0.05 +
+            backendQuality * 0.30 +
+            frontendQuality * 0.10 +
+            documentationQuality * 0.10 +
             apiQuality * 0.05 +
-            commitActivity * 0.10 +
-            codeOrganization * 0.10 +
-            testCoverage * 0.10
+            commitActivity * 0.15 +
+            codeOrganization * 0.05 +
+            testCoverage * 0.05
         );
 
         // Determine complexity
@@ -379,23 +412,23 @@ export async function analyzeRepositoryQuality(
             testCoverage,
             documentation: documentationQuality,
             commitActivity,
-            communityEngagement: 0, // Not used in custom weights
-            maintenance: backendQuality, // Use backend quality for maintenance score
+            communityEngagement: analyzeCommunityEngagement(metadata), // Use the actual function
+            maintenance: analyzeMaintenance(metadata, tree), // Use the actual function
             details
         };
     } catch (error) {
         console.error('Quality analysis error:', error);
-        // Return default scores on error
+        // Return 0 scores on error to indicate failure explicitly
         return {
-            qualityScore: 50,
+            qualityScore: 0,
             complexity: 'UNKNOWN',
-            readmeQuality: 50,
-            codeOrganization: 50,
+            readmeQuality: 0,
+            codeOrganization: 0,
             testCoverage: 0,
-            documentation: 50,
-            commitActivity: 50,
-            communityEngagement: 50,
-            maintenance: 50,
+            documentation: 0,
+            commitActivity: 0,
+            communityEngagement: 0,
+            maintenance: 0,
             details: {
                 hasTests: false,
                 hasCI: false,

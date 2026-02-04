@@ -96,7 +96,7 @@ export function TerminalHeader() {
     return (
         <header className="w-full border-b border-white bg-black px-6 py-4 flex items-center justify-between sticky top-0 z-50 gap-4">
             <Link href="/feed" className="flex items-center gap-4 shrink-0 hover:opacity-80 transition-opacity">
-                <Terminal className="text-white w-6 h-6" />
+                <img src="/logo.jpg" alt="EvalHub" className="w-10 h-10 rounded-full border border-white/20" />
                 <h2 className="text-white text-xl font-bold tracking-widest uppercase font-mono">EVALHUB_</h2>
             </Link>
 
