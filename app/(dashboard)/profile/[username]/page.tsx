@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { UserPlus, Check, MessageSquare, Clock, Wifi, Search, Github, ExternalLink, Star, GitFork, Users, Calendar, MapPin, Link as LinkIcon, Mail, Twitter, Building, X, Loader2, Terminal, Cpu, GitCommit, Activity, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast'
 import { toast } from 'sonner'
+import { AIAssistant } from '@/components/AIAssistant'
 
 interface GitHubUser {
     login: string;
@@ -702,6 +703,16 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
                     </div>
                 </div>
             )}
+
+            {/* AI Assistant - Always Available */}
+            <AIAssistant
+                context={analyzingRepo && remoteAnalysis ? {
+                    repositoryName: analyzingRepo.name,
+                    qualityScore: remoteAnalysis.qualityScore,
+                    qualityBreakdown: remoteAnalysis.qualityBreakdown,
+                    languages: remoteAnalysis.languages
+                } : undefined}
+            />
         </div >
     )
 }

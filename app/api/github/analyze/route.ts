@@ -44,24 +44,30 @@ export async function POST(request: Request) {
             // 3. Fetch commits for quality analysis
             commits = await fetchRepoCommits(repoUrl);
 
-            // 4. Run AI Analysis
+            // 4. Run Enhanced Quality Analysis (First, to get scores for hard indexing)
+            const qualityAnalysis = await analyzeRepositoryQuality(
+                owner,
+                repo,
+                readme,
+                metadata, // Pass metadata
+                commits || [], // Pass commits
+                githubToken // Pass token
+            );
+
+            // 5. Run AI Analysis (Pass quality scores for hard indexing)
             const analysis = await analyzeREADMEWithFallback(readme, {
                 title: metadata?.name || repoFullName.split('/')[1],
                 description: metadata?.description || '',
                 techStack: Object.keys(languages || {}),
                 challenge: '',
                 solution: ''
-            });
+            }, qualityAnalysis);
 
-            // 5. Run Enhanced Quality Analysis
-            const qualityAnalysis = await analyzeRepositoryQuality(
-                owner,
-                repo,
-                readme,
-                metadata,
-                commits || [],
-                githubToken
-            );
+            // Merge the hard indexed analysis with the quality metrics
+            analysis.analysis = {
+                ...analysis.analysis,
+                qualityScore: qualityAnalysis.qualityScore,
+            };
 
             analysisData = {
                 ...analysis.analysis,

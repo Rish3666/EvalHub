@@ -6,6 +6,7 @@ import { formatDistanceToNow, getDay } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { Loader2, GitCommit, Cpu, ExternalLink, Github, Terminal, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { AIAssistant } from '@/components/AIAssistant'
 
 interface GitHubUser {
     login: string;
@@ -560,6 +561,16 @@ export default function ProfilePage() {
                     </div>
                 </div>
             )}
+
+            {/* AI Assistant - Always Available */}
+            <AIAssistant
+                context={analyzingRepo && remoteAnalysis ? {
+                    repositoryName: analyzingRepo.name,
+                    qualityScore: remoteAnalysis.qualityScore,
+                    qualityBreakdown: remoteAnalysis.qualityBreakdown,
+                    languages: remoteAnalysis.languages
+                } : undefined}
+            />
         </div >
     )
 }

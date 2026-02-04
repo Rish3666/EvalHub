@@ -1,10 +1,10 @@
 -- MASTER SCHEMA PART 1: Foundation & Identity
--- Setup extensions, helpers, and the core users table with sync triggers.
+-- OPTIMIZED: Added indexes, robust RLS policies, and conflict handling.
 
 -- 1. Setup Base Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Core Updated At Helper
+-- 2. Performance Helpers & Triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -13,7 +13,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3. Users Table (Consolidated)
+-- 3. Users Table (Optimized)
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -29,7 +29,10 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Auth Sync Trigger (GitHub OAuth)
+-- Index for faster profile lookups by username
+CREATE INDEX IF NOT EXISTS idx_users_github_username ON public.users(github_username);
+
+-- 4. Auth Sync Trigger (GitHub OAuth) - Robust Handling
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -43,9 +46,10 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
-    full_name = EXCLUDED.full_name,
-    avatar_url = EXCLUDED.avatar_url,
-    github_username = EXCLUDED.github_username;
+    full_name = COALESCE(EXCLUDED.full_name, public.users.full_name),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.users.avatar_url),
+    github_username = COALESCE(EXCLUDED.github_username, public.users.github_username),
+    updated_at = NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -65,15 +69,27 @@ SELECT
 FROM auth.users
 ON CONFLICT (id) DO NOTHING;
 
--- 6. RLS Policies
+-- 6. RLS Policies (STRICT & OPTIMIZED)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Public access" ON public.users;
+-- Helper to safely drop policies for idempotency
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Public access" ON public.users;
+    DROP POLICY IF EXISTS "Users can update their own profile" ON public.users;
+    DROP POLICY IF EXISTS "Users can insert their own profile" ON public.users;
+END $$;
+
+-- Policy 1: Public Read Access
 CREATE POLICY "Public access" ON public.users FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "Users can update their own profile" ON public.users;
+-- Policy 2: Update Own Profile
 CREATE POLICY "Users can update their own profile" ON public.users 
   FOR UPDATE USING (auth.uid() = id);
+
+-- Policy 3: Insert Own Profile (CRITICAL FIX)
+CREATE POLICY "Users can insert their own profile" ON public.users 
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- 7. Permissions
 GRANT ALL ON public.users TO anon, authenticated;

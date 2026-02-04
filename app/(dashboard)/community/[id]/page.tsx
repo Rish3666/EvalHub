@@ -1,11 +1,12 @@
 "use client"
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
-import { Send, Image as ImageIcon, Reply, Hash, MoreVertical, Search, User, AtSign, Smile } from 'lucide-react'
+import { Send, Image as ImageIcon, Reply, Hash, MoreVertical, Search, User, AtSign, Smile, Loader2, X } from 'lucide-react'
 
+// --- Interfaces ---
 interface Message {
     id: number;
     content: string;
@@ -17,7 +18,14 @@ interface Message {
         github_username: string;
         avatar_url: string;
         full_name: string;
-    }
+    };
+    reply_to_message?: {
+        content: string;
+        users?: { github_username: string }
+    };
+    // For Optimistic UI
+    isOptimistic?: boolean;
+    isError?: boolean;
 }
 
 interface Member {
@@ -33,410 +41,330 @@ interface Community {
     id: string;
     name: string;
     description: string;
-    tags: string;
 }
 
-export default function CommunityChatPage() {
-    const params = useParams()
-    const router = useRouter()
-    const communityId = (Array.isArray(params.id) ? params.id[0] : params.id) || ''
-
-    const [messages, setMessages] = useState<Message[]>([])
-    const [newMessage, setNewMessage] = useState('')
-    const [loading, setLoading] = useState(true)
-    const [replyTo, setReplyTo] = useState<Message | null>(null)
-    const [community, setCommunity] = useState<Community | null>(null)
-    const [members, setMembers] = useState<Member[]>([])
-    const [currentUser, setCurrentUser] = useState<any>(null)
-    const [uploading, setUploading] = useState(false)
-
-    // Mention state
-    const [mentionSearch, setMentionSearch] = useState('')
-    const [showMentions, setShowMentions] = useState(false)
-    const [mentionIndex, setMentionIndex] = useState(0)
-
-    const messagesEndRef = useRef<HTMLDivElement>(null)
-    const inputRef = useRef<HTMLInputElement>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
+// --- Custom Hook: robust chat protocol ---
+function useChatProtocol(communityId: string) {
     const supabase = createClient()
+    const [status, setStatus] = useState<'INITIALIZING' | 'CONNECTED' | 'DISCONNECTED' | 'ERROR'>('INITIALIZING')
+    const [messages, setMessages] = useState<Message[]>([])
+    const [members, setMembers] = useState<Member[]>([])
+    const [community, setCommunity] = useState<Community | null>(null)
+    const [currentUser, setCurrentUser] = useState<any>(null)
+    const router = useRouter()
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
-
+    // 1. Initialization Sequence
     useEffect(() => {
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) {
-                router.push('/')
-                return
+        let mounted = true;
+
+        async function connect() {
+            try {
+                // Auth Check
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) {
+                    router.push('/')
+                    return
+                }
+                if (mounted) setCurrentUser(user)
+
+                // Parallel Fetch
+                const [commRes, msgsRes, memsRes] = await Promise.all([
+                    supabase.from('communities').select('*').eq('id', communityId).single(),
+                    supabase.from('messages').select('*, users(github_username, avatar_url, full_name), reply_to_message:messages!reply_to_id(content, users(github_username))').eq('community_id', communityId).order('created_at', { ascending: true }).limit(100),
+                    supabase.from('community_members').select('users(id, github_username, full_name, avatar_url)').eq('community_id', communityId)
+                ])
+
+                if (commRes.error) throw commRes.error
+
+                if (mounted) {
+                    setCommunity(commRes.data)
+                    setMessages(msgsRes.data as any || [])
+
+                    const mappedMembers = memsRes.data?.map((m: any) => ({
+                        id: m.users.id,
+                        github_username: m.users.github_username,
+                        full_name: m.users.full_name,
+                        avatar_url: m.users.avatar_url,
+                        online_status: 'offline'
+                    })) || []
+                    setMembers(mappedMembers as any)
+
+                    setStatus('CONNECTED')
+                }
+
+            } catch (err) {
+                console.error("Connection Failed:", err)
+                if (mounted) setStatus('ERROR')
+                toast.error("Failed to establish secure connection")
             }
-            setCurrentUser(session.user)
-
-            await Promise.all([
-                fetchCommunityInfo(),
-                fetchMessages(),
-                fetchMembers()
-            ])
-            setLoading(false)
         }
-        init()
 
-        // Realtime subscription for instant message updates
+        connect()
+
+        return () => { mounted = false }
+    }, [communityId, router])
+
+    // 2. Realtime Subscription
+    useEffect(() => {
+        if (status !== 'CONNECTED') return
+
         const channel = supabase
-            .channel(`community-${communityId}`)
+            .channel(`room:${communityId}`)
             .on(
                 'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `community_id=eq.${communityId}`
-                },
-                (payload) => {
-                    // Add the new message to the list
-                    setMessages((prev) => [...prev, payload.new as any])
+                { event: 'INSERT', schema: 'public', table: 'messages', filter: `community_id=eq.${communityId}` },
+                async (payload) => {
+                    const newMsg = payload.new as Message
+
+                    // Fetch user details for the new message
+                    const { data: userData } = await supabase
+                        .from('users')
+                        .select('github_username, avatar_url, full_name')
+                        .eq('id', newMsg.user_id)
+                        .single()
+
+                    const completeMsg = { ...newMsg, users: userData }
+
+                    setMessages(prev => {
+                        // Avoid duplicates if possible, or just append
+                        return [...prev, completeMsg as any]
+                    })
                 }
             )
             .subscribe()
 
-        return () => {
-            supabase.removeChannel(channel)
+        return () => { supabase.removeChannel(channel) }
+    }, [communityId, status])
+
+    // 3. Robust Send Function
+    const sendMessage = useCallback(async (content: string, attachments: any[], replyTo: Message | null) => {
+        if (!currentUser) return
+
+        const tempId = Date.now()
+        const optimisticMsg: Message = {
+            id: tempId,
+            content,
+            user_id: currentUser.id,
+            created_at: new Date().toISOString(),
+            reply_to_id: replyTo?.id || null,
+            attachments,
+            users: {
+                github_username: currentUser.user_metadata?.user_name || 'me',
+                avatar_url: currentUser.user_metadata?.avatar_url || '',
+                full_name: currentUser.user_metadata?.full_name || 'Me'
+            },
+            reply_to_message: replyTo ? {
+                content: replyTo.content,
+                users: { github_username: replyTo.users?.github_username || 'unknown' }
+            } : undefined,
+            isOptimistic: true
         }
-    }, [communityId])
 
-    useEffect(() => {
-        if (!loading) scrollToBottom()
-    }, [messages.length])
-
-    async function fetchCommunityInfo() {
-        try {
-            const res = await fetch(`/api/communities/${communityId}`)
-            if (res.ok) {
-                const data = await res.json()
-                setCommunity(data)
-            }
-        } catch (error) {
-            console.error("Failed to fetch community info", error)
-        }
-    }
-
-    async function fetchMembers() {
-        try {
-            const res = await fetch(`/api/communities/${communityId}/members`)
-            if (res.ok) {
-                const data = await res.json()
-                setMembers(data)
-            }
-        } catch (error) {
-            console.error("Failed to fetch members", error)
-        }
-    }
-
-    async function fetchMessages() {
-        try {
-            const res = await fetch(`/api/communities/${communityId}/messages`)
-            if (res.ok) {
-                const data = await res.json()
-                setMessages(data)
-            }
-        } catch (error) {
-            console.error("Failed to fetch messages", error)
-        }
-    }
-
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-
-        if (!file.type.startsWith('image/')) {
-            toast.error("Please upload an image file")
-            return
-        }
+        // Add Optimistic Message
+        setMessages(prev => [...prev, optimisticMsg])
 
         try {
-            setUploading(true)
-            const fileExt = file.name.split('.').pop()
-            const fileName = `${Math.random()}.${fileExt}`
-            const filePath = `${communityId}/${fileName}`
-
-            const { error: uploadError, data } = await supabase.storage
-                .from('communities')
-                .upload(filePath, file)
-
-            if (uploadError) throw uploadError
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('communities')
-                .getPublicUrl(filePath)
-
-            // Auto-send message with image
-            await handleSendMessage(null, [publicUrl])
-            toast.success("Image uploaded")
-        } catch (error: any) {
-            toast.error(`Upload failed: ${error.message}`)
-        } finally {
-            setUploading(false)
-            if (fileInputRef.current) fileInputRef.current.value = ''
-        }
-    }
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value
-        const cursorPosition = e.target.selectionStart || 0
-        setNewMessage(val)
-
-        // Check for @ mention
-        const textBeforeCursor = val.slice(0, cursorPosition)
-        const mentionMatch = textBeforeCursor.match(/@(\w*)$/)
-
-        if (mentionMatch) {
-            setMentionSearch(mentionMatch[1].toLowerCase())
-            setShowMentions(true)
-            setMentionIndex(0)
-        } else {
-            setShowMentions(false)
-        }
-    }
-
-    const insertMention = (username: string) => {
-        const cursorPosition = inputRef.current?.selectionStart || 0
-        const textBeforeCursor = newMessage.slice(0, cursorPosition)
-        const textAfterCursor = newMessage.slice(cursorPosition)
-
-        const lastAtIndex = textBeforeCursor.lastIndexOf('@')
-        const updatedText = textBeforeCursor.slice(0, lastAtIndex) + '@' + username + ' ' + textAfterCursor
-
-        setNewMessage(updatedText)
-        setShowMentions(false)
-        inputRef.current?.focus()
-    }
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (showMentions) {
-            const filtered = members.filter(m => m.github_username.toLowerCase().includes(mentionSearch))
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault()
-                setMentionIndex(prev => (prev + 1) % filtered.length)
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault()
-                setMentionIndex(prev => (prev - 1 + filtered.length) % filtered.length)
-            } else if (e.key === 'Enter' || e.key === 'Tab') {
-                e.preventDefault()
-                if (filtered[mentionIndex]) {
-                    insertMention(filtered[mentionIndex].github_username)
-                }
-            } else if (e.key === 'Escape') {
-                setShowMentions(false)
-            }
-        }
-    }
-
-    const handleSendMessage = async (e: React.FormEvent | null, attachments: string[] = []) => {
-        if (e) e.preventDefault()
-        if (!newMessage.trim() && attachments.length === 0) return
-
-        const content = newMessage
-        setNewMessage('')
-        const prevReplyTo = replyTo
-        setReplyTo(null)
-
-        try {
+            // FORCE API ROUTE usage to ensure Profile Auto-Creation (Self-Healing)
             const res = await fetch(`/api/communities/${communityId}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    content: content || (attachments.length > 0 ? '' : ''),
-                    reply_to_id: prevReplyTo?.id,
-                    attachments: attachments
+                    content,
+                    attachments,
+                    reply_to_id: replyTo?.id
                 })
             })
 
             if (!res.ok) {
                 const err = await res.json()
-                toast.error(`Signal failed: ${err.error || 'Check system logs'}`)
-                setNewMessage(content) // Restore
-            } else {
-                toast.success('Message transmitted successfully')
-                await fetchMessages()
+                throw new Error(err.error || 'Failed to send')
             }
-        } catch (error) {
-            console.error("Message Error:", error)
-            toast.error("Transmission timeout. Node potentially offline.")
-            setNewMessage(content) // Restore
+
+            // Success: Remove optimistic message (Realtime will add the real one)
+            // Ideally we substitute, but for simplicity we can just wait for realtime.
+            // Using a simple timeout to clear optimistic message to avoid flickering before realtime arrives or if it arrived already.
+            // A better way is to replace based on content match or just let it exist for a moment.
+            // We'll replace it with the response data which mimics the real record.
+            const realData = await res.json()
+
+            setMessages(prev => prev.map(m =>
+                m.id === tempId ? { ...realData, users: optimisticMsg.users } : m
+            ))
+
+        } catch (err: any) {
+            console.error("Send Failed:", err)
+            toast.error("Transmission Failed")
+            // Mark as error
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, isError: true } : m))
+        }
+    }, [communityId, currentUser])
+
+    return {
+        status,
+        messages,
+        members,
+        community,
+        currentUser,
+        sendMessage
+    }
+}
+
+
+// --- Main Page Component ---
+
+export default function CommunityChatPage() {
+    const params = useParams()
+    const communityId = (Array.isArray(params.id) ? params.id[0] : params.id) || ''
+
+    // Use our new robust protocol hook
+    const { status, messages, members, community, currentUser, sendMessage } = useChatProtocol(communityId)
+
+    const [newMessage, setNewMessage] = useState('')
+    const [replyTo, setReplyTo] = useState<Message | null>(null)
+    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const router = useRouter()
+
+    // Scroll Logic
+    useEffect(() => {
+        if (status === 'CONNECTED') {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }
+    }, [messages.length, status])
+
+    const handleSend = async (e?: React.FormEvent) => {
+        e?.preventDefault()
+        if (!newMessage.trim()) return
+
+        const content = newMessage
+        setNewMessage('')
+        const reply = replyTo
+        setReplyTo(null)
+
+        await sendMessage(content, [], reply)
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        // Fix: Send on plain Enter (unless Shift is held for new line)
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            handleSend()
         }
     }
 
-    const renderContent = (content: string) => {
-        const parts = content.split(/(@\w+)/g)
-        return parts.map((part, i) => {
-            if (part.startsWith('@')) {
-                const username = part.slice(1)
-                const isMember = members.some(m => m.github_username.toLowerCase() === username.toLowerCase())
-                return (
-                    <span
-                        key={i}
-                        className={`${isMember ? 'bg-white/20 text-white' : 'text-blue-400'} font-bold px-1 rounded cursor-pointer hover:underline`}
-                        onClick={() => router.push(`/project/${username}/analysis`)}
-                    >
-                        {part}
-                    </span>
-                )
-            }
-            return part
-        })
+    if (status === 'INITIALIZING') {
+        return (
+            <div className="flex flex-col items-center justify-center h-full bg-black text-white font-mono gap-4 animate-pulse">
+                <Loader2 className="w-12 h-12 animate-spin text-green-500" />
+                <p className="tracking-[0.2em] text-xs">ESTABLISHING_SECURE_UPLINK...</p>
+            </div>
+        )
     }
 
-    const filteredMentionMembers = members.filter(m =>
-        m.github_username.toLowerCase().includes(mentionSearch) ||
-        m.full_name?.toLowerCase().includes(mentionSearch)
-    )
+    if (status === 'ERROR' || !community) {
+        return <div className="p-10 text-red-500 font-mono">CONNECTION_LOST. RETRY_LATER.</div>
+    }
 
     return (
         <div className="flex flex-col h-[calc(100vh-64px)] w-full relative bg-black font-mono overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white px-6 py-2 bg-black z-20">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 border border-white flex items-center justify-center font-bold text-lg shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]">
-                        <Hash className="w-6 h-6" />
+            <div className="flex items-center justify-between border-b border-white/20 px-6 py-3 bg-black z-20 shadow-lg">
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 border border-white/30 flex items-center justify-center bg-white/5">
+                        <Hash className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-white text-sm font-bold tracking-[0.2em] uppercase">
-                            {community?.name || `COMMUNITY_${communityId.slice(0, 8)}`}
+                        <h1 className="text-white text-base font-bold tracking-[0.1em] uppercase">
+                            {community.name}
                         </h1>
-                        <div className="flex items-center gap-3">
-                            <span className="flex items-center gap-1.5 text-[10px] text-green-500 font-bold uppercase tracking-widest">
-                                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                                Online_
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                            <span className="text-[10px] text-green-500 font-bold uppercase tracking-widest">
+                                Online
                             </span>
-                            <span className="text-[10px] text-gray-500 tracking-widest border-l border-white/20 pl-3">
-                                {members.length} Members
+                            <span className="text-[10px] text-gray-500 border-l border-white/20 pl-2 ml-2 tracking-wider">
+                                {members.length} NODES_ACTIVE
                             </span>
                         </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-6">
-                    <div className="hidden lg:flex items-center border border-white/20 px-4 py-2 bg-white/5 group focus-within:border-white transition-colors">
-                        <Search className="w-4 h-4 text-gray-500 mr-3 group-focus-within:text-white" />
-                        <input
-                            type="text"
-                            placeholder="SEARCH_LOGS..."
-                            className="bg-transparent border-none text-xs text-white placeholder-gray-700 focus:outline-none w-48 font-mono tracking-widest uppercase"
-                        />
-                    </div>
-                    <button className="p-2 border border-white/10 hover:border-white text-gray-400 hover:text-white transition-all">
-                        <MoreVertical className="w-5 h-5" />
-                    </button>
                 </div>
             </div>
 
-            {/* Main Workspace */}
+            {/* Main Area */}
             <div className="flex-1 flex overflow-hidden">
-                {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center h-full text-white font-mono gap-6 animate-pulse">
-                            <div className="w-12 h-12 border-4 border-t-white border-white/10 rounded-full animate-spin"></div>
-                            <p className="tracking-[0.5em] text-sm font-bold">DECRYPTING_COMMUNICATION_STREAM...</p>
-                        </div>
-                    ) : messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full border border-dashed border-white/10 m-4 opacity-50">
-                            <Smile className="w-12 h-12 mb-4 text-gray-500" />
-                            <p className="font-bold tracking-widest uppercase text-sm">Empty_Node</p>
-                            <p className="text-xs mt-2 text-gray-600">Be the first to transmit a signal.</p>
+                {/* Messages List */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar bg-[url('/grid.svg')] bg-repeat opacity-[0.98]">
+                    {messages.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center opacity-30 text-center">
+                            <Hash className="w-16 h-16 mb-4 text-white" />
+                            <p className="tracking-widest">CHANNEL_EMPTY</p>
                         </div>
                     ) : (
                         messages.map((msg, index) => {
                             const isMe = msg.user_id === currentUser?.id;
                             const prevMsg = messages[index - 1];
-                            const showHeader = !prevMsg || prevMsg.user_id !== msg.user_id || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() > 60000 * 5);
+                            const isSequence = prevMsg && prevMsg.user_id === msg.user_id && (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() < 60000 * 2);
 
                             return (
-                                <div key={msg.id} className={`group flex flex-col ${showHeader ? 'mt-8' : 'mt-1'} px-4`}>
-                                    <div className={`flex gap-4 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-start group-hover:bg-white/5 transition-all py-2 rounded-lg relative`}>
-                                        {/* Avatar */}
-                                        <div className="w-10 h-10 flex-shrink-0">
-                                            {showHeader ? (
-                                                <div className={`w-10 h-10 border ${isMe ? 'border-blue-500' : 'border-white'} overflow-hidden bg-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]`}>
-                                                    {msg.users?.avatar_url ? (
-                                                        <img src={msg.users.avatar_url} alt={msg.users.github_username} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center bg-white text-black font-bold text-xs">
-                                                            {msg.users?.github_username?.[0]?.toUpperCase() || '?'}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : null}
+                                <div key={msg.id} className={`flex flex-col ${isSequence ? 'mt-1' : 'mt-6'} ${isMe ? 'items-end' : 'items-start'}`}>
+                                    {/* Reply Context */}
+                                    {msg.reply_to_message && !isSequence && (
+                                        <div className={`mb-1 flex items-center gap-2 text-[10px] text-gray-500 bg-white/5 px-2 py-1 rounded border-l-2 border-blue-500/50 ${isMe ? 'mr-12' : 'ml-12'}`}>
+                                            <Reply className="w-3 h-3" />
+                                            <span>Replying to {msg.reply_to_message.users?.github_username || 'Unknown'}</span>
                                         </div>
+                                    )}
 
-                                        {/* Message Content */}
-                                        <div className={`flex flex-col max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
-                                            {showHeader && (
-                                                <div className={`flex items-center gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
-                                                    <span className={`text-[11px] font-black uppercase tracking-wider ${isMe ? 'text-blue-400' : 'text-white'}`}>
-                                                        {isMe ? 'YOU' : (msg.users?.github_username || 'UNKNOWN')}
-                                                    </span>
-                                                    <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">
-                                                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                                                    </span>
-                                                </div>
-                                            )}
-
-                                            {/* Reply Context */}
-                                            {msg.reply_to_id && (
-                                                <div
-                                                    className={`mb-2 p-2 border-l-2 border-blue-500/30 bg-white/5 text-[10px] text-gray-500 max-w-sm cursor-pointer hover:bg-white/10 transition-colors ${isMe ? 'text-right border-r-2 border-l-0' : 'text-left'}`}
-                                                    onClick={() => {
-                                                        const parent = document.getElementById(`msg-${msg.reply_to_id}`);
-                                                        parent?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                    }}
-                                                >
-                                                    <div className="flex items-center gap-2 mb-1 opacity-70">
-                                                        <Reply className="w-3 h-3" />
-                                                        <span className="font-bold">REPLY_TO</span>
-                                                    </div>
-                                                    <p className="truncate line-clamp-1 italic">
-                                                        {messages.find(m => m.id === msg.reply_to_id)?.content || 'Original transmission lost...'}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            <div id={`msg-${msg.id}`} className={`relative group/bubble p-3 rounded-md ${isMe
-                                                ? 'bg-blue-900/20 border border-blue-500/30 text-right selection:bg-blue-500'
-                                                : 'bg-white/5 border border-white/10 text-left selection:bg-white'
-                                                }`}>
-                                                {msg.content && (
-                                                    <div className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
-                                                        {renderContent(msg.content)}
+                                    <div className={`flex gap-3 max-w-[85%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                        {/* Avatar */}
+                                        {!isMe && (
+                                            <div className="w-8 flex-shrink-0">
+                                                {!isSequence && (
+                                                    <div className="w-8 h-8 rounded border border-white/20 overflow-hidden bg-black">
+                                                        <img src={msg.users?.avatar_url || 'https://github.com/github.png'} alt="Av" className="w-full h-full object-cover" />
                                                     </div>
                                                 )}
-                                                {msg.attachments && msg.attachments.length > 0 && (
-                                                    <div className={`flex flex-wrap gap-2 mt-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                        {msg.attachments.map((url, i) => (
-                                                            <div key={i} className="max-w-[200px] border border-white/20 bg-black p-0.5 hover:border-white transition-colors cursor-zoom-in">
-                                                                <img
-                                                                    src={url}
-                                                                    alt="Attachment"
-                                                                    className="w-full object-contain"
-                                                                    onClick={() => window.open(url, '_blank')}
-                                                                />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {/* Hover Action */}
-                                                <div className={`absolute top-0 ${isMe ? '-left-10' : '-right-10'} opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
-                                                    <button
-                                                        onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }}
-                                                        className="p-1.5 bg-black border border-white/20 hover:border-white text-gray-500 hover:text-white transition-colors"
-                                                        title="Reply"
-                                                    >
-                                                        <Reply className="w-4 h-4" />
-                                                    </button>
-                                                </div>
                                             </div>
+                                        )}
+
+                                        {/* Content */}
+                                        <div
+                                            className={`relative group px-4 py-2.5 rounded-sm border backdrop-blur-sm
+                                            ${isMe
+                                                    ? 'bg-blue-900/20 border-blue-500/30 text-white rounded-tr-none shadow-[4px_4px_0_0_rgba(59,130,246,0.1)]'
+                                                    : 'bg-white/5 border-white/10 text-gray-200 rounded-tl-none hover:bg-white/10 transition-colors'
+                                                }
+                                            ${msg.isOptimistic ? 'opacity-70 border-dashed' : ''}
+                                            ${msg.isError ? 'border-red-500 bg-red-900/10' : ''}
+                                            `}
+                                        >
+                                            {/* Header */}
+                                            {!isMe && !isSequence && (
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] font-bold text-blue-400 tracking-wider">@{msg.users?.github_username}</span>
+                                                    <span className="text-[8px] text-gray-600">{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
+                                                </div>
+                                            )}
+
+                                            <p className="text-sm shadow-black drop-shadow-md whitespace-pre-wrap leading-relaxed">
+                                                {msg.content}
+                                            </p>
+
+                                            {/* Footer/Status */}
+                                            <div className="mt-1 flex justify-end gap-2 items-center text-[8px] text-gray-500">
+                                                {msg.isOptimistic && <span className="animate-pulse text-yellow-500">SENDING...</span>}
+                                                {msg.isError && <span className="text-red-500 font-bold">FAILED</span>}
+                                            </div>
+
+                                            {/* Quick Reply Button */}
+                                            {!msg.isOptimistic && !msg.isError && (
+                                                <button
+                                                    onClick={() => { setReplyTo(msg); inputRef.current?.focus() }}
+                                                    className={`absolute top-0 ${isMe ? '-left-8' : '-right-8'} p-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black border border-white/20 text-gray-400 hover:text-white`}
+                                                >
+                                                    <Reply className="w-3 h-3" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -446,135 +374,69 @@ export default function CommunityChatPage() {
                     <div ref={messagesEndRef} />
                 </div>
 
-                {/* Left Sidebar - Members List */}
-                <div className="w-64 border-l border-white/20 bg-black flex flex-col hidden lg:flex">
-                    <div className="p-4 border-b border-white/10 bg-white/5">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 flex items-center gap-2">
-                            <User className="w-3 h-3" />
-                            Active_Nodes_List
+                {/* Sidebar */}
+                <div className="w-64 border-l border-white/20 bg-black hidden lg:flex flex-col">
+                    <div className="p-3 border-b border-white/10 bg-white/5">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
+                            Operatives_Online
                         </h3>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                        {members.map((member) => {
-                            const isOnline = member.online_status === 'online' || (member.last_seen && (new Date().getTime() - new Date(member.last_seen).getTime() < 5 * 60 * 1000));
-                            return (
-                                <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => router.push(`/profile/${member.github_username}`)}>
-                                    <div className="relative">
-                                        <div className={`w-8 h-8 border ${isOnline ? 'border-green-500' : 'border-white/20'} overflow-hidden`}>
-                                            <img src={member.avatar_url} alt={member.github_username} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
-                                        </div>
-                                        {isOnline && (
-                                            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-green-500 rounded-full border border-black animate-pulse"></div>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className={`text-[11px] font-bold truncate ${isOnline ? 'text-white' : 'text-gray-500'}`}>
-                                            @{member.github_username}
-                                        </span>
-                                        <span className="text-[8px] text-gray-600 uppercase tracking-widest truncate">
-                                            {isOnline ? 'Sychronized' : 'Standby'}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-
-            {/* Mention List Dropdown */}
-            {showMentions && filteredMentionMembers.length > 0 && (
-                <div className="absolute left-6 bottom-32 w-72 bg-black border-2 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.1)] z-50 overflow-hidden animate-in slide-in-from-bottom-2">
-                    <div className="bg-black border-b border-white text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest flex justify-between items-center">
-                        <span>Mention_Person</span>
-                        <AtSign className="w-3 h-3" />
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                        {filteredMentionMembers.map((member, i) => (
-                            <div
-                                key={member.id || i}
-                                className={`flex items-center gap-4 px-4 py-3 cursor-pointer transition-colors ${i === mentionIndex ? 'bg-white text-black' : 'hover:bg-white/10 text-white'}`}
-                                onClick={() => insertMention(member.github_username)}
-                                onMouseEnter={() => setMentionIndex(i)}
-                            >
-                                <div className={`w-8 h-8 border ${i === mentionIndex ? 'border-black' : 'border-white/20'} overflow-hidden`}>
-                                    <img src={member.avatar_url} alt={member.github_username} className="w-full h-full object-cover" />
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                        {members.map(member => (
+                            <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-white/5 cursor-pointer group transition-colors rounded-sm" onClick={() => router.push(`/profile/${member.github_username}`)}>
+                                <div className="relative">
+                                    <img src={member.avatar_url} className="w-8 h-8 grayscale group-hover:grayscale-0 transition-all border border-white/10" />
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-black"></div>
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-xs font-bold truncate">@{member.github_username}</span>
-                                    <span className={`text-[10px] truncate ${i === mentionIndex ? 'text-black/60' : 'text-gray-500'}`}>
-                                        {member.full_name || 'Active Member'}
-                                    </span>
+                                    <span className="text-xs text-gray-300 font-bold truncate group-hover:text-white">@{member.github_username}</span>
+                                    <span className="text-[9px] text-gray-600 truncate uppercase tracking-wider">{member.full_name}</span>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
-            )}
+            </div>
 
             {/* Input Area */}
-            <div className="p-6 bg-black border-t border-white pb-10">
+            <div className="p-6 bg-black border-t border-white/20 z-20">
                 {replyTo && (
-                    <div className="flex items-center justify-between bg-white text-black px-4 py-2 mb-4 text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-left-4">
-                        <div className="flex items-center gap-2">
-                            <Reply className="w-3 h-3" />
-                            <span>Replying to @{messages.find(m => m.id === replyTo.id)?.users?.github_username || 'NODE'}</span>
-                        </div>
-                        <button onClick={() => setReplyTo(null)} className="hover:opacity-50 transition-opacity">CLOSE [X]</button>
+                    <div className="flex items-center justify-between mb-2 bg-blue-900/20 border-l-2 border-blue-500 px-3 py-2 animate-in slide-in-from-bottom-2">
+                        <span className="text-xs text-blue-300 font-mono">
+                            REPLYING_TO: <span className="font-bold text-white">@{replyTo.users?.github_username}</span>
+                        </span>
+                        <button onClick={() => setReplyTo(null)} className="hover:bg-white/10 p-1 rounded"><X className="w-4 h-4 text-gray-400" /></button>
                     </div>
                 )}
 
-                <form onSubmit={handleSendMessage} className="relative group">
-                    <div className="flex items-center gap-3 bg-white/5 border-2 border-white/20 p-2 focus-within:border-white focus-within:bg-black transition-all">
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleImageUpload}
-                            accept="image/*"
-                            className="hidden"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={uploading}
-                            className={`p-2 border border-white/10 text-gray-500 hover:text-white hover:border-white transition-all ${uploading ? 'animate-pulse' : ''}`}
-                        >
-                            <ImageIcon className="w-5 h-5" />
-                        </button>
+                <form onSubmit={handleSend} className="relative flex items-center gap-4 bg-white/5 border border-white/20 p-3 hover:border-white/40 focus-within:border-white transition-colors">
+                    <button type="button" className="text-gray-500 hover:text-white transition-colors">
+                        <ImageIcon className="w-5 h-5" />
+                    </button>
 
-                        <div className="flex-1 relative">
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={newMessage}
-                                onChange={handleInputChange}
-                                onKeyDown={handleKeyDown}
-                                placeholder={uploading ? 'UPLOADING_DATA...' : replyTo ? 'Transmission_Linked...' : 'BROADCAST_SIGNAL...'}
-                                className="w-full bg-transparent border-none text-white focus:outline-none py-1 px-1 font-mono text-sm placeholder:text-gray-800 tracking-widest uppercase"
-                            />
-                        </div>
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="TRANSMIT_DATA..."
+                        className="flex-1 bg-transparent border-none outline-none text-white font-mono placeholder-gray-600 text-sm"
+                    />
 
-                        <button
-                            type="submit"
-                            disabled={(!newMessage.trim() && !uploading) || uploading}
-                            className="bg-white text-black p-2 hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-500 transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] active:shadow-none active:translate-x-1 active:translate-y-1"
-                        >
-                            <Send className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <div className="mt-4 flex justify-between items-center text-[9px] font-bold tracking-[0.2em] text-gray-500 uppercase">
-                        <div className="flex gap-4">
-                            <span className="flex items-center gap-1"><Hash className="w-3 h-3" /> MARKDOWN_READY</span>
-                            <span className="flex items-center gap-1"><AtSign className="w-3 h-3" /> MENTIONS_ON</span>
-                        </div>
-                        <div className="flex gap-4">
-                            <span>CTRL + ENTER TO SEND</span>
-                            <span className="text-white/30">|</span>
-                            <span>V.1.0_PROTOTYPE</span>
-                        </div>
-                    </div>
+                    <button
+                        type="submit"
+                        disabled={!newMessage.trim()}
+                        className="p-2 bg-white/10 hover:bg-white hover:text-black text-white transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white"
+                    >
+                        <Send className="w-5 h-5" />
+                    </button>
                 </form>
+
+                <div className="mt-3 flex justify-between text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">
+                    <span>SECURE_UPLINK_V3</span>
+                    <span>ENTER_TO_SEND | SHIFT+ENTER_NEW_LINE</span>
+                </div>
             </div>
         </div>
     )

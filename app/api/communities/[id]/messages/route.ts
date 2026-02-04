@@ -37,11 +37,38 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     }
 
     try {
-        const { content, reply_to_id, attachments } = await request.json()
+        const payload = await request.json()
+        const { content, reply_to_id, attachments } = payload
 
         if (!content && (!attachments || attachments.length === 0)) {
             return NextResponse.json({ error: 'Content or attachments required' }, { status: 400 })
         }
+
+        // Verify user exists in public.users to prevent FK error
+        const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).single()
+
+        if (!profile) {
+            console.error("User profile missing in public.users. Attempting sync...")
+            // Attempt to self-heal by inserting the user from auth data
+            const { error: syncError } = await supabase.from('users').insert({
+                id: user.id,
+                email: user.email,
+                full_name: user.user_metadata.full_name,
+                avatar_url: user.user_metadata.avatar_url,
+                github_username: user.user_metadata.user_name
+            })
+
+            if (syncError) {
+                console.error("Failed to sync user profile:", syncError)
+                return NextResponse.json({ error: 'User profile missing and sync failed' }, { status: 500 })
+            }
+        }
+
+        // Check if community exists
+        // const { data: community } = await supabase.from('communities').select('id').eq('id', params.id).single()
+        // if (!community) {
+        //      return NextResponse.json({ error: 'Community not found' }, { status: 404 })
+        // }
 
         const { data, error } = await supabase
             .from('messages')
@@ -56,13 +83,13 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             .single()
 
         if (error) {
-            console.error("Message Insert Error:", error)
-            return NextResponse.json({ error: error.message }, { status: 500 })
+            console.error("Message Insert Error Detail:", JSON.stringify(error, null, 2))
+            return NextResponse.json({ error: error.message, details: error }, { status: 500 })
         }
 
         return NextResponse.json(data)
     } catch (err: any) {
-        console.error("Message API Error:", err)
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+        console.error("Message API Exception:", err)
+        return NextResponse.json({ error: "Internal Server Error", details: err.message }, { status: 500 })
     }
 }

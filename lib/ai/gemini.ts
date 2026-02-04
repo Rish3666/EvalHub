@@ -387,10 +387,147 @@ export function getDefaultQuestions(techStack: string[]): AnalysisResult["questi
 /**
  * Wrapper with fallback for README analysis
  */
+/**
+ * Deterministically generates analysis based on quality scores ("Hard Indexing")
+ */
+function generateHardIndexedAnalysis(projectData: ProjectData, scores: any): AnalysisResult {
+    const questions: AnalysisResult["questions"] = [];
+    const concerns: string[] = [];
+    const strengths: string[] = [];
+    let architectureNotes = "";
+
+    // 1. Backend Analysis
+    if (scores.maintenance < 30) {
+        concerns.push("Missing backend framework");
+        questions.push({
+            id: 1,
+            question: "This project seems to lack a robust backend framework. how would you scale this architecture to handle 10,000 concurrent users?",
+            expectedDepth: "Candidate should discuss introducing a framework like NestJS/Express, database connection pooling, and caching strategies.",
+            category: "Scalability"
+        });
+        architectureNotes += "• Backend architecture appears minimal. Recommend adopting a structured framework (NestJS/Express) for scalability.\n";
+    } else {
+        strengths.push("Solid backend structure");
+        questions.push({
+            id: 1,
+            question: "Walk me through your backend architecture decisions. Why did you choose this specific structure over a microservices approach?",
+            expectedDepth: "Candidate should explain the trade-offs between monolith and microservices, citing complexity vs. scalability.",
+            category: "Architecture"
+        });
+        architectureNotes += "• Backend structure is well-defined. Good separation of concerns detected.\n";
+    }
+
+    // 2. Testing Analysis
+    if (scores.testCoverage < 20) {
+        concerns.push("Critical lack of testing");
+        questions.push({
+            id: 2,
+            question: "I notice there are few automated tests. How do you ensure new features don't break existing functionality in production?",
+            expectedDepth: "Candidate should acknowledge the risk and propose a testing strategy (Unit, Integration, E2E) with tools like Jest/Cypress.",
+            category: "Reliability"
+        });
+        architectureNotes += "• Critical Alert: Test coverage is insufficient. Immediate focus on unit testing is recommended.\n";
+    } else {
+        strengths.push("Comprehensive testing");
+        questions.push({
+            id: 2,
+            question: "Your test coverage is good. Can you describe a complex bug that your test suite caught before deployment?",
+            expectedDepth: "Candidate should provide a concrete example demonstrating the value of their testing strategy.",
+            category: "Quality Assurance"
+        });
+        architectureNotes += "• Testing strategy is robust. Project reliability is high.\n";
+    }
+
+    // 3. Documentation Analysis
+    if (scores.documentation < 40) {
+        concerns.push("Sparse documentation");
+        questions.push({
+            id: 3,
+            question: "The documentation is brief. If a new developer joined today, what would be their biggest hurdle in understanding this codebase?",
+            expectedDepth: "Candidate should identify complex logic or setup steps that need better documentation.",
+            category: "Maintainability"
+        });
+    } else {
+        strengths.push("Excellent documentation");
+        questions.push({
+            id: 3,
+            question: "Your documentation is very clear. How do you keep it up-to-date as the codebase evolves?",
+            expectedDepth: "Candidate should discuss processes like 'docs-as-code' or automated documentation generation.",
+            category: "Process"
+        });
+    }
+
+    // 4. Tech Stack Specific (Hard Indexed)
+    const techStack = projectData.techStack.join(" ").toLowerCase();
+
+    if (techStack.includes("react") || techStack.includes("next")) {
+        questions.push({
+            id: 4,
+            question: "In this React/Next.js application, how are you managing global state and preventing unnecessary re-renders?",
+            expectedDepth: "Candidate should discuss Context API, Redux/Zustand, or memoization techniques (useMemo, useCallback).",
+            category: "Frontend Performance"
+        });
+    } else if (techStack.includes("python") || techStack.includes("django") || techStack.includes("fastapi")) {
+        questions.push({
+            id: 4,
+            question: "For this Python backend, how are you handling asynchronous tasks and database migrations?",
+            expectedDepth: "Candidate should mention Celery/Redis for async tasks and Alembic/Django Migrations for DB schema management.",
+            category: "Backend Operations"
+        });
+    } else {
+        questions.push({
+            id: 4,
+            question: "What was the most technically challenging part of implementing this specific tech stack?",
+            expectedDepth: "Candidate should detailed specific language/framework hurdles and solutions.",
+            category: "Technical Depth"
+        });
+    }
+
+    // 5. System Design / Security
+    questions.push({
+        id: 5,
+        question: "If this application were attacked (DDoS or Injection), which component would fail first and how would you secure it?",
+        expectedDepth: "Candidate should identify the weakest link (e.g. un-rate-limited API) and propose security measures (Rate Limiting, WAF, Input Validation).",
+        category: "Security & Resilience"
+    });
+
+    return {
+        analysis: {
+            complexity: scores.qualityScore > 70 ? "advanced" : scores.qualityScore > 40 ? "intermediate" : "beginner",
+            strengths: strengths.length > 0 ? strengths : ["Potential for growth", "Clear basic structure"],
+            techAreas: projectData.techStack,
+            architectureNotes: `### 🔍 AI Architectural Analysis (Hard Indexed)
+            
+${architectureNotes}
+• **Code Organization:** ${scores.codeOrganization > 60 ? "Modular and clean." : "Needs better folder structure separation."}
+• **Adaptability:** This codebase is ${scores.adaptationScore > 70 ? "highly adaptable" : "somewhat rigid"} based on current patterns.
+• **Recommendation:** Focus on ${scores.testCoverage < 30 ? "testing strategies" : scores.maintenance < 40 ? "backend architecture" : "documentation"} to improve quality.`,
+            qualityScore: scores.qualityScore,
+            adaptationScore: scores.adaptationScore || 50,
+            implementationEstimate: scores.qualityScore > 70 ? "4-8 weeks" : scores.qualityScore > 40 ? "2-4 weeks" : "1 week",
+            difficulty: scores.qualityScore > 70 ? "Hard" : scores.qualityScore > 40 ? "Medium" : "Easy",
+            concerns: concerns.length > 0 ? concerns : ["Minor refactoring needed"],
+        },
+        questions: questions
+    };
+}
+
+/**
+ * Wrapper with fallback for README analysis
+ * Now uses "Hard Indexing" (deterministic logic) when scores are available
+ */
 export async function analyzeREADMEWithFallback(
     readme: string,
-    projectData: ProjectData
+    projectData: ProjectData,
+    calculatedScores?: any // Pass the calculated scores here
 ): Promise<AnalysisResult> {
+
+    // IF we have scores (Hard Indexing Mode), prioritize deterministic analysis
+    if (calculatedScores) {
+        // console.log("Using Hard Indexed Logic for Analysis");
+        return generateHardIndexedAnalysis(projectData, calculatedScores);
+    }
+
     try {
         return await analyzeREADME(readme, projectData);
     } catch (error) {
