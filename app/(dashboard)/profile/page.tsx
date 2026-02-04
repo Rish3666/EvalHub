@@ -1,9 +1,11 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow, getDay } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { Loader2, GitCommit, Cpu, ExternalLink, Github, Terminal, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface GitHubUser {
     login: string;
@@ -35,6 +37,12 @@ export default function ProfilePage() {
     const [showFollowers, setShowFollowers] = useState(false)
     const [followersList, setFollowersList] = useState<any[]>([])
     const [loadingFollowers, setLoadingFollowers] = useState(false)
+    const [followerSearchQuery, setFollowerSearchQuery] = useState('')
+    const [analyzingRepo, setAnalyzingRepo] = useState<any>(null)
+    const [fetchingAnalysis, setFetchingAnalysis] = useState(false)
+    const [remoteAnalysis, setRemoteAnalysis] = useState<any>(null)
+    const [remoteCommits, setRemoteCommits] = useState<any[]>([])
+
     const supabase = createClient()
     const router = useRouter()
 
@@ -66,24 +74,20 @@ export default function ProfilePage() {
 
                     reposData.forEach(repo => {
                         const updateDate = new Date(repo.updated_at)
-                        // Only count updates in last 30 days for relevant "Work Time" stats
                         const daysDiff = (now.getTime() - updateDate.getTime()) / (1000 * 3600 * 24)
 
                         if (daysDiff < 30) {
-                            const dayIndex = getDay(updateDate) // 0-6 (Sun-Sat)
-                            // Map to Mon-Sun (0-6) where Mon=0
+                            const dayIndex = getDay(updateDate)
                             const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1
                             dist[mappedIndex]++
                             recentActivityCount++
                         }
                     })
 
-                    // Normalize for visual bars (percentage of max)
                     const maxVal = Math.max(...dist, 1)
                     const visualDist = dist.map(v => (v / maxVal) * 100)
                     setWorkTimeDistribution(visualDist)
 
-                    // Calculate Code Frequency
                     if (recentActivityCount > 10) setCodeFrequency('High')
                     else if (recentActivityCount > 3) setCodeFrequency('Medium')
                     else setCodeFrequency('Low')
@@ -93,6 +97,12 @@ export default function ProfilePage() {
         }
         fetchData()
     }, [])
+
+    const filteredFollowers = useMemo(() => {
+        return followersList.filter((f: any) =>
+            f.login.toLowerCase().includes(followerSearchQuery.toLowerCase())
+        )
+    }, [followersList, followerSearchQuery])
 
     const handleLogout = async () => {
         await supabase.auth.signOut()
@@ -120,11 +130,39 @@ export default function ProfilePage() {
         }
     }
 
-    if (loading) {
-        return <div className="p-8 text-white font-mono animate-pulse">Loading Profile Data...</div>
+    const startRepoAnalysis = async (repo: Repo) => {
+        setAnalyzingRepo(repo)
+        setFetchingAnalysis(true)
+        setRemoteAnalysis(null)
+        setRemoteCommits([])
+
+        try {
+            const fullName = `${user?.login}/${repo.name}`
+            const res = await fetch('/api/github/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repoFullName: fullName })
+            })
+
+            if (res.ok) {
+                const data = await res.json()
+                setRemoteAnalysis(data.analysis)
+                setRemoteCommits(data.commits || [])
+            } else {
+                toast.error("Analysis sequence failed. Check server logs.")
+            }
+        } catch (error) {
+            console.error("Analysis Error:", error)
+            toast.error("Connection error during analysis.")
+        } finally {
+            setFetchingAnalysis(false)
+        }
     }
 
-    // fallback for score calculation (just a fun metric based on repo count * 5 capped at 100)
+    if (loading) {
+        return <div className="p-8 text-white font-mono animate-pulse uppercase tracking-widest">Awaiting System Sync...</div>
+    }
+
     const score = user && user.public_repos > 0 ? Math.min(100, 50 + (user.public_repos * 2)) : null
     const recentRepo = repos.length > 0 ? repos[0] : null
 
@@ -146,7 +184,11 @@ export default function ProfilePage() {
                     </div>
                 </div>
                 {user?.avatar_url && (
-                    <img src={user.avatar_url} alt="Profile" className="w-16 h-16 border-2 border-white rounded-none grayscale hover:grayscale-0 transition-all ml-4" />
+                    <img
+                        src={user.avatar_url}
+                        alt="Profile"
+                        className="w-16 h-16 border-2 border-white rounded-none transition-all ml-4 hover:grayscale cursor-crosshair"
+                    />
                 )}
             </div>
 
@@ -164,11 +206,11 @@ export default function ProfilePage() {
                             </div>
                             <div className="mt-auto space-y-4">
                                 <div className="flex items-center gap-6 mb-4">
-                                    <button className="w-24 h-24 border border-white flex flex-col items-center justify-center bg-black hover:bg-white hover:text-black transition-colors duration-300">
+                                    <div className="w-24 h-24 border border-white flex flex-col items-center justify-center bg-black">
                                         <span className="material-symbols-outlined text-3xl">grid_view</span>
                                         <span className="text-xl font-bold mt-1">{user?.public_repos || 0}</span>
                                         <span className="text-[10px] uppercase tracking-widest mt-1">Repos</span>
-                                    </button>
+                                    </div>
                                     <button
                                         onClick={fetchFollowers}
                                         className="w-24 h-24 border border-white flex flex-col items-center justify-center bg-black hover:bg-white hover:text-black transition-colors duration-300"
@@ -180,13 +222,17 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div>
-                                    <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4">Latest Projects</h2>
+                                    <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-4 uppercase">Latest Projects</h2>
                                     <div className="border-l-2 border-white pl-4 flex flex-col gap-2 font-mono">
                                         {repos.slice(0, 4).map((repo, i) => (
-                                            <a key={repo.id} href={repo.html_url} target="_blank" rel="noreferrer" className="flex justify-between items-center text-white/80 text-lg font-medium tracking-widest w-full hover:text-white hover:bg-white/10 px-2 transition-all">
+                                            <button
+                                                key={repo.id}
+                                                onClick={() => startRepoAnalysis(repo)}
+                                                className="flex justify-between items-center text-white/80 text-lg font-medium tracking-widest w-full hover:text-white hover:bg-white/10 px-2 transition-all text-left"
+                                            >
                                                 <span className="truncate max-w-[200px] md:max-w-none">{i + 1}) {repo.name}</span>
                                                 <span className="text-xs uppercase border border-gray-600 px-1">{repo.private ? 'PVT' : 'PUB'}</span>
-                                            </a>
+                                            </button>
                                         ))}
                                         {repos.length === 0 && <span className="text-gray-500">No projects found.</span>}
                                     </div>
@@ -205,21 +251,21 @@ export default function ProfilePage() {
                 <div className="lg:col-span-4 flex flex-col gap-6">
                     <div className="border border-white p-6 bg-black flex flex-col justify-between min-h-[180px] rounded-none group hover:bg-white hover:text-black transition-colors duration-300 cursor-default">
                         <div className="flex justify-between items-start">
-                            <p className="text-sm font-bold tracking-widest">Dev Score Card</p>
+                            <p className="text-sm font-bold tracking-widest uppercase">Dev Score Card</p>
                             <span className="material-symbols-outlined text-sm">analytics</span>
                         </div>
                         <div>
                             <p className="text-6xl font-bold tracking-tighter mt-2">{score === null ? 'NULL' : `${score}%`}</p>
                             <div className="flex items-center gap-2 mt-2">
                                 <span className="material-symbols-outlined text-sm">arrow_upward</span>
-                                <p className="text-xs font-bold tracking-widest">Based on Repo Activity</p>
+                                <p className="text-xs font-bold tracking-widest uppercase">Based on Repo Activity</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="border border-white p-6 bg-black flex-1 flex flex-col rounded-none min-h-[250px]">
                         <div className="flex justify-between items-center mb-6">
-                            <p className="text-sm font-bold tracking-widest">Work Time</p>
+                            <p className="text-sm font-bold tracking-widest uppercase">Work Time</p>
                             <p className="text-xs text-gray-400 animate-pulse">Live</p>
                         </div>
                         <div className="flex-1 flex items-end justify-between gap-2 h-full">
@@ -230,15 +276,14 @@ export default function ProfilePage() {
                             ))}
                         </div>
                         <div className="flex justify-between mt-4 text-[10px] text-gray-400 font-mono tracking-widest">
-                            <span>Mon</span>
-                            <span>Wed</span>
-                            <span>Sun</span>
+                            <span>MON</span>
+                            <span>WED</span>
+                            <span>SUN</span>
                         </div>
                     </div>
                 </div>
 
                 <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Stat Card 1 */}
                     <div className="border border-white p-6 bg-black flex flex-col gap-4 rounded-none hover:bg-white hover:text-black transition-colors duration-300 group cursor-pointer">
                         <div className="flex justify-between items-center">
                             <p className="text-sm font-bold tracking-widest opacity-70">Recent Project</p>
@@ -250,7 +295,6 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
-                    {/* Stat Card 2 */}
                     <div
                         onClick={fetchFollowers}
                         className="border border-white p-6 bg-black flex flex-col gap-4 rounded-none hover:bg-white hover:text-black transition-colors duration-300 group cursor-pointer"
@@ -265,7 +309,6 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
-                    {/* Stat Card 3 */}
                     <div className="border border-white p-6 bg-black flex flex-col gap-4 rounded-none hover:bg-white hover:text-black transition-colors duration-300 group cursor-pointer">
                         <div className="flex justify-between items-center">
                             <p className="text-sm font-bold tracking-widest opacity-70">Coding_Frequency</p>
@@ -282,48 +325,241 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            {
-                showFollowers && (
-                    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowFollowers(false)}>
-                        <div className="bg-black border border-white w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
-                                <h2 className="text-xl font-bold tracking-widest uppercase">Followers_List</h2>
-                                <button onClick={() => setShowFollowers(false)} className="text-white hover:text-gray-400">
-                                    <span className="material-symbols-outlined">close</span>
+            {showFollowers && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowFollowers(false)}>
+                    <div className="bg-black border border-white w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4 border-b border-white/20 pb-4">
+                            <h2 className="text-xl font-bold tracking-widest uppercase">Followers_List</h2>
+                            <button onClick={() => setShowFollowers(false)} className="text-white hover:text-gray-400">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+
+                        <div className="mb-6">
+                            <input
+                                type="text"
+                                value={followerSearchQuery}
+                                onChange={(e) => setFollowerSearchQuery(e.target.value)}
+                                placeholder="Search node by username..."
+                                className="w-full bg-black border border-white p-3 text-sm font-sans placeholder:text-gray-700 focus:outline-none tracking-widest text-white"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                            {loadingFollowers ? (
+                                <div className="text-center py-8 text-gray-500 font-mono animate-pulse">Syncing User Data...</div>
+                            ) : filteredFollowers.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500 font-mono">
+                                    {followerSearchQuery ? 'NO_MATCHING_NODES_FOUND' : 'No followers found.'}
+                                </div>
+                            ) : (
+                                filteredFollowers.map((follower: any) => (
+                                    <div key={follower.id} className="flex items-center justify-between p-3 border border-white/10 hover:border-white hover:bg-white/5 transition-all group">
+                                        <div className="flex items-center gap-4">
+                                            <img src={follower.avatar_url} alt={follower.login} className="w-10 h-10 border border-white/20" />
+                                            <div>
+                                                <p className="font-bold tracking-wide">@{follower.login}</p>
+                                                <a href={follower.html_url} target="_blank" rel="noreferrer" className="text-[10px] text-gray-400 hover:text-white uppercase tracking-widest">
+                                                    View_GitHub Profile
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setShowFollowers(false);
+                                                setFollowerSearchQuery('');
+                                                router.push(`/profile/${follower.login}`);
+                                            }}
+                                            className="text-[10px] border border-white/30 px-2 py-1 hover:border-white hover:bg-white hover:text-black transition-all uppercase"
+                                        >
+                                            Inspect
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* REPO ANALYSIS MODAL */}
+            {analyzingRepo && (
+                <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center p-4 pt-20 backdrop-blur-md" onClick={() => setAnalyzingRepo(null)}>
+                    <div className="bg-black border-2 border-white w-full max-w-4xl p-8 relative animate-in slide-in-from-bottom-5 duration-300 shadow-[0_0_50px_rgba(255,255,255,0.1)] overflow-hidden rounded-none" onClick={e => e.stopPropagation()}>
+                        {/* Background Grid */}
+                        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+
+                        <div className="relative z-10 flex flex-col h-full max-h-[85vh]">
+                            <div className="flex justify-between items-start mb-8 border-b-2 border-white/20 pb-6">
+                                <div>
+                                    <div className="flex items-center gap-4 mb-3">
+                                        <div className="bg-white text-black px-2 py-0.5 text-[10px] font-black tracking-tighter uppercase font-mono">EVAL MODE</div>
+                                        <h2 className="text-4xl font-black tracking-tighter uppercase flex items-center gap-4 text-white">
+                                            {analyzingRepo.name}
+                                            {fetchingAnalysis && <Loader2 className="w-6 h-6 animate-spin text-white/50" />}
+                                        </h2>
+                                    </div>
+                                    <div className="flex gap-6 text-[10px] font-bold text-gray-500 tracking-[0.3em] uppercase font-mono">
+                                        <span className="flex items-center gap-2 text-white/80"><Github className="w-3 h-3" /> {user?.login}/{analyzingRepo.name}</span>
+                                        <span>SYSTEM_SYNC: {formatDistanceToNow(new Date(analyzingRepo.updated_at))} AGO</span>
+                                    </div>
+                                </div>
+                                <button onClick={() => setAnalyzingRepo(null)} className="p-2 border border-white/20 hover:bg-white hover:text-black transition-all group/close">
+                                    <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
                                 </button>
                             </div>
 
-                            <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                                {loadingFollowers ? (
-                                    <div className="text-center py-8 text-gray-500 font-mono animate-pulse">Syncing User Data...</div>
-                                ) : followersList.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500 font-mono">No followers found.</div>
-                                ) : (
-                                    followersList.map((follower: any) => (
-                                        <div key={follower.id} className="flex items-center justify-between p-3 border border-white/10 hover:border-white hover:bg-white/5 transition-all group">
-                                            <div className="flex items-center gap-4">
-                                                <img src={follower.avatar_url} alt={follower.login} className="w-10 h-10 border border-white/20" />
-                                                <div>
-                                                    <p className="font-bold tracking-wide">@{follower.login}</p>
-                                                    <a href={follower.html_url} target="_blank" rel="noreferrer" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest">
-                                                        View_GitHub Profile
-                                                    </a>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => router.push(`/analysis?username=${follower.login}`)}
-                                                className="text-[10px] border border-white/30 px-2 py-1 hover:border-white hover:bg-white hover:text-black transition-all uppercase"
-                                            >
-                                                Inspect
-                                            </button>
+                            <div className="flex-1 overflow-y-auto space-y-12 pr-4 custom-scrollbar scroll-smooth">
+                                {fetchingAnalysis ? (
+                                    <div className="py-32 flex flex-col items-center justify-center text-center gap-8">
+                                        <div className="relative">
+                                            <div className="w-24 h-24 border-4 border-white/10 rounded-none animate-pulse"></div>
+                                            <div className="absolute inset-0 border-t-4 border-white animate-spin"></div>
                                         </div>
-                                    ))
+                                        <div className="font-mono space-y-3">
+                                            <p className="text-2xl font-black tracking-[0.2em] animate-pulse text-white">&gt; INITIATING_AI_SYNCHRONIZATION...</p>
+                                            <p className="text-[10px] text-gray-500 tracking-[0.5em] uppercase">PARSING_SOURCE_METADATA | SCANNING_README | GENERATING_TECHNICAL_OVERVIEW | FETCHING_SIGNAL_GAPS</p>
+                                        </div>
+                                    </div>
+                                ) : remoteAnalysis ? (
+                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+                                        <div className="lg:col-span-7 space-y-12">
+                                            <section className="relative">
+                                                <div className="flex items-center gap-3 mb-6">
+                                                    <div className="w-2 h-6 bg-white"></div>
+                                                    <h3 className="text-sm font-black tracking-[0.4em] uppercase text-white/60">System_Summary</h3>
+                                                </div>
+                                                <div className="border-l-2 border-white/10 pl-8 relative">
+                                                    <p className="text-xl leading-relaxed font-light tracking-wide text-gray-300">
+                                                        {remoteAnalysis.architectureNotes || "NO_README_ANALYSIS_AVAILABLE"}
+                                                    </p>
+                                                </div>
+                                            </section>
+
+                                            <section>
+                                                <div className="flex items-center gap-3 mb-8">
+                                                    <Cpu className="w-5 h-5 text-white/40" />
+                                                    <h3 className="text-sm font-black tracking-[0.4em] uppercase text-white/60">Language_Composition</h3>
+                                                </div>
+                                                <div className="space-y-4">
+                                                    {(() => {
+                                                        const languages = remoteAnalysis.languages || {};
+                                                        const totalBytes = Object.values(languages).reduce((sum: number, bytes: any) => sum + bytes, 0);
+
+                                                        return Object.entries(languages)
+                                                            .sort(([, a]: any, [, b]: any) => b - a)
+                                                            .map(([lang, bytes]: any) => {
+                                                                const percentage = ((bytes / totalBytes) * 100).toFixed(1);
+                                                                return (
+                                                                    <div key={lang} className="space-y-2">
+                                                                        <div className="flex justify-between items-center">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="w-2 h-2 bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)] animate-pulse"></div>
+                                                                                <span className="text-xs font-bold tracking-[0.2em] uppercase text-white">{lang}</span>
+                                                                            </div>
+                                                                            <span className="text-xs font-black text-white/60">{percentage}%</span>
+                                                                        </div>
+                                                                        <div className="w-full bg-white/10 h-1.5 overflow-hidden">
+                                                                            <div
+                                                                                className="h-full bg-gradient-to-r from-green-500 to-white transition-all duration-1000 ease-in-out shadow-[0_0_10px_rgba(34,197,94,0.5)]"
+                                                                                style={{ width: `${percentage}%` }}
+                                                                            ></div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            });
+                                                    })()}
+                                                </div>
+                                            </section>
+                                        </div>
+
+                                        <div className="lg:col-span-5 space-y-12">
+                                            <section>
+                                                <div className="flex items-center gap-3 mb-6">
+                                                    <GitCommit className="w-5 h-5 text-white/40" />
+                                                    <h3 className="text-sm font-black tracking-[0.4em] uppercase text-white/60">Signal_History</h3>
+                                                </div>
+                                                <div className="space-y-6 font-mono">
+                                                    {remoteCommits.length > 0 ? remoteCommits.map((commit: any) => (
+                                                        <div key={commit.sha} className="border-l-2 border-white/20 pl-6 py-2 hover:border-white transition-all group/commit bg-white/0 hover:bg-white/5 cursor-default">
+                                                            <p className="text-[11px] text-white leading-snug truncate group-hover:text-clip group-hover:whitespace-normal" title={commit.commit.message}>
+                                                                {commit.commit.message}
+                                                            </p>
+                                                            <p className="text-[9px] text-gray-500 mt-2 uppercase tracking-widest font-black">
+                                                                {commit.sha.substring(0, 8)} // {formatDistanceToNow(new Date(commit.commit.author.date))} AGO
+                                                            </p>
+                                                        </div>
+                                                    )) : (
+                                                        <p className="text-xs text-gray-600 font-mono italic text-center py-12 border border-dashed border-white/10">NO_SIGNALS_RECORDED</p>
+                                                    )}
+                                                </div>
+                                            </section>
+
+                                            <div className="bg-white/5 p-8 border border-white/10 space-y-6 relative overflow-hidden group/card">
+                                                <div className="absolute top-0 right-0 p-2 opacity-10">
+                                                    <Terminal className="w-12 h-12 text-white" />
+                                                </div>
+                                                <div className="flex justify-between items-end">
+                                                    <div className="space-y-1">
+                                                        <span className="text-[10px] font-black tracking-[0.4em] uppercase text-gray-500">Quality_Index</span>
+                                                        <div className="text-4xl font-black text-white">{remoteAnalysis.qualityScore || 0}%</div>
+                                                    </div>
+                                                    <div className={`text-[10px] font-bold px-2 py-1 border ${remoteAnalysis.qualityScore > 80 ? 'border-green-500 text-green-500' : 'border-yellow-500 text-yellow-500'} uppercase tracking-widest`}>
+                                                        {remoteAnalysis.complexity || 'PENDING'}
+                                                    </div>
+                                                </div>
+                                                <div className="w-full bg-white/10 h-1.5 overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-white transition-all duration-1000 ease-in-out shadow-[0_0_15px_rgba(255,255,255,0.7)]"
+                                                        style={{ width: `${remoteAnalysis.qualityScore || 0}%` }}
+                                                    ></div>
+                                                </div>
+                                                <p className="text-[9px] text-gray-500 leading-relaxed font-mono uppercase tracking-[0.1em]">
+                                                    ALGORITHMIC_VERIFICATION: Structure_{remoteAnalysis.qualityScore > 70 ? 'Optimal' : 'Standard'} // Logic_{remoteAnalysis.adaptationScore > 70 ? 'Verified' : 'Scanning'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="py-32 text-center space-y-8">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <X className="w-16 h-16 text-red-500/50" />
+                                            <p className="text-xl font-black tracking-widest uppercase text-red-400">Transmission_Sync_Error: [ANALYSIS_FAIL]</p>
+                                        </div>
+                                        <button
+                                            onClick={() => startRepoAnalysis(analyzingRepo)}
+                                            className="border-2 border-white px-10 py-3 text-sm font-black hover:bg-white hover:text-black transition-all uppercase tracking-[0.4em]"
+                                        >
+                                            RETRY_SYNC_INIT
+                                        </button>
+                                    </div>
                                 )}
+                            </div>
+
+                            <div className="mt-12 border-t-2 border-white/20 pt-8 flex justify-between items-center bg-black">
+                                <a
+                                    href={analyzingRepo.html_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-3 text-[10px] font-black text-gray-500 hover:text-white transition-all uppercase tracking-[0.4em] group/git"
+                                >
+                                    <ExternalLink className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                                    Launch_in_GitHub_External_Nodes
+                                </a>
+                                <div className="flex items-center gap-6">
+                                    <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest font-mono">
+                                        EST_IMPL: {remoteAnalysis?.implementationEstimate || 'N/A'}
+                                    </div>
+                                    <div className="text-[10px] font-black text-black bg-white px-4 py-2 uppercase tracking-[0.2em] shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]">
+                                        Status: {fetchingAnalysis ? 'Analyzing...' : 'Ready'}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
         </div >
     )
 }

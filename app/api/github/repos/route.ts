@@ -9,11 +9,16 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        const headers: Record<string, string> = {
+            "Accept": "application/vnd.github.v3+json",
+        };
+
+        if (process.env.GITHUB_TOKEN) {
+            headers["Authorization"] = `token ${process.env.GITHUB_TOKEN}`;
+        }
+
         const response = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=updated&per_page=100`, {
-            headers: {
-                "Accept": "application/vnd.github.v3+json",
-                // "Authorization": `token ${process.env.GITHUB_TOKEN}` // Optional: if we add a token later
-            },
+            headers,
             next: { revalidate: 3600 } // Cache for 1 hour
         });
 

@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface FeedItem {
     id: number;
@@ -46,7 +48,7 @@ type FilterType = 'friends' | 'followers' | 'both';
 export default function FeedPage() {
     const [feedItems, setFeedItems] = useState<FeedItem[]>([])
     const [loading, setLoading] = useState(true)
-    const [filter, setFilter] = useState<FilterType>('friends')
+    const [filter, setFilter] = useState<FilterType>('both')
     const [interactions, setInteractions] = useState<Interactions>({})
 
     // Comments State
@@ -203,8 +205,11 @@ export default function FeedPage() {
         }
     }
 
+    const [isPosting, setIsPosting] = useState(false)
+
     const postComment = async () => {
-        if (!activeCommentRepo || !newComment.trim()) return
+        if (!activeCommentRepo || !newComment.trim() || isPosting) return
+        setIsPosting(true)
 
         try {
             const res = await fetch('/api/feed/comments', {
@@ -217,17 +222,25 @@ export default function FeedPage() {
                 const comment = await res.json()
                 setComments(prev => [...prev, comment])
                 setNewComment('')
+                toast.success("Comment transmitted successfully.")
                 // Update count
                 setInteractions(prev => ({
                     ...prev,
                     [activeCommentRepo.id]: {
                         ...prev[activeCommentRepo.id],
-                        comments: prev[activeCommentRepo.id].comments + 1
+                        comments: (prev[activeCommentRepo.id]?.comments || 0) + 1
                     }
                 }))
+            } else {
+                const err = await res.json()
+                toast.error(`Relay failure: ${err.error || 'Unknown error'}`)
             }
         } catch (error) {
             console.error("Post comment failed", error)
+            toast.error("Transmission breach. Check network sync.")
+        } finally {
+            setIsPosting(false)
+            setLoadingComments(false)
         }
     }
 
@@ -301,7 +314,7 @@ export default function FeedPage() {
                                         <img src={item.owner.avatar_url} alt={item.owner.login} className="w-full h-full object-cover" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <Link href={`/analysis?username=${item.owner.login}`} className="font-bold text-white text-xs tracking-widest hover:underline decoration-white underline-offset-4">
+                                        <Link href={`/profile/${item.owner.login}`} className="font-bold text-white text-xs tracking-widest hover:underline decoration-white underline-offset-4">
                                             @{item.owner.login}
                                         </Link>
                                         <span className="text-[10px] text-gray-500 tracking-wider font-mono">
@@ -334,7 +347,7 @@ export default function FeedPage() {
                                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">star</span> {item.stargazers_count}</span>
                                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">commit</span> Latest Commit</span>
                                     </div>
-                                    <Link href={`/analysis?username=${item.owner.login}`} className="text-white hover:underline decoration-white underline-offset-4 uppercase tracking-widest font-bold">
+                                    <Link href={`/profile/${item.owner.login}`} className="text-white hover:underline decoration-white underline-offset-4 uppercase tracking-widest font-bold">
                                         &gt; Analyze Project
                                     </Link>
                                 </div>
@@ -347,8 +360,11 @@ export default function FeedPage() {
                                     onClick={() => handleLike(item.id)}
                                     className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group/btn"
                                 >
-                                    <span className={cn("material-symbols-outlined text-xl transition-colors", interactions[item.id]?.likedByMe ? "text-red-500 fill-current" : "group-hover/btn:text-red-500")}>
-                                        {interactions[item.id]?.likedByMe ? 'favorite' : 'favorite'}
+                                    <span className={cn(
+                                        "material-symbols-outlined text-xl transition-all duration-300",
+                                        interactions[item.id]?.likedByMe ? "text-red-500 material-symbols-filled scale-125" : "group-hover/btn:text-red-400"
+                                    )}>
+                                        favorite
                                     </span>
                                     <span className="text-xs font-mono">{interactions[item.id]?.likes || 0}</span>
                                 </button>
@@ -412,10 +428,11 @@ export default function FeedPage() {
                                 />
                                 <button
                                     onClick={postComment}
-                                    disabled={!newComment.trim()}
-                                    className="bg-white text-black px-4 font-bold tracking-widest uppercase hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs transition-colors"
+                                    disabled={!newComment.trim() || isPosting}
+                                    className="bg-white text-black px-4 font-bold tracking-widest uppercase hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs transition-colors flex items-center gap-2"
                                 >
-                                    Post
+                                    {isPosting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                    {isPosting ? 'Sending...' : 'Post'}
                                 </button>
                             </div>
                         </div>

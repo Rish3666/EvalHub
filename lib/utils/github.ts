@@ -130,3 +130,28 @@ export function parseGitHubUrl(url: string): { owner: string; repo: string } | n
         return null;
     }
 }
+/**
+ * Fetches recent repository commits from GitHub
+ */
+export async function fetchRepoCommits(repoUrl: string): Promise<any[] | null> {
+    try {
+        const parsed = parseGitHubUrl(repoUrl);
+        if (!parsed) return null;
+
+        const { owner, repo } = parsed;
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits?per_page=5`, {
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'DevShowcase-AI-Analyzer',
+                ...(process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}),
+            },
+            signal: AbortSignal.timeout(10000),
+        });
+
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching repo commits:', error);
+        return null;
+    }
+}

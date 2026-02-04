@@ -309,6 +309,10 @@ function AnalysisContent() {
                             </span>
                             {isSendingRequest ? 'CONNECTING...' : requestSent ? 'REQUEST SENT' : 'ADD FRIEND'}
                         </Button>
+                        <Button onClick={() => router.push(`/profile/${searchedUser.login}`)} variant="outline" className="border-white text-white hover:bg-white hover:text-black font-mono font-bold tracking-widest">
+                            <span className="material-symbols-outlined text-sm mr-2">person</span>
+                            VIEW PROFILE
+                        </Button>
                         <Button onClick={() => window.location.href = '/leaderboard'} variant="outline" className="border-white text-white hover:bg-white hover:text-black font-mono font-bold tracking-widest">
                             <span className="material-symbols-outlined text-sm mr-2">group</span>
                             VIEW FRIENDS

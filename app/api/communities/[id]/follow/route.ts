@@ -8,9 +8,9 @@ export async function POST(
     try {
         const { id } = await params
         const supabase = await createClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { user } } = await supabase.auth.getUser()
 
-        if (!session) {
+        if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
@@ -18,7 +18,7 @@ export async function POST(
         const { data: existing } = await supabase
             .from('community_follows')
             .select('id')
-            .eq('user_id', session.user.id)
+            .eq('user_id', user.id)
             .eq('community_id', id)
             .maybeSingle()
 
@@ -30,11 +30,12 @@ export async function POST(
         const { error } = await supabase
             .from('community_follows')
             .insert({
-                user_id: session.user.id,
+                user_id: user.id,
                 community_id: id
             })
 
         if (error) {
+            console.error('Follow error:', error)
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
@@ -52,9 +53,9 @@ export async function DELETE(
     try {
         const { id } = await params
         const supabase = await createClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { user } } = await supabase.auth.getUser()
 
-        if (!session) {
+        if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
@@ -62,10 +63,11 @@ export async function DELETE(
         const { error } = await supabase
             .from('community_follows')
             .delete()
-            .eq('user_id', session.user.id)
+            .eq('user_id', user.id)
             .eq('community_id', id)
 
         if (error) {
+            console.error('Unfollow error:', error)
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 

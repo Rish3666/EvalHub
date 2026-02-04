@@ -38,27 +38,45 @@ ALTER TABLE public.feed_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feed_comments ENABLE ROW LEVEL SECURITY;
 
 -- Friend Requests Policies
+DROP POLICY IF EXISTS "Users view own requests" ON public.friend_requests;
 CREATE POLICY "Users view own requests" ON public.friend_requests
   FOR SELECT USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
+DROP POLICY IF EXISTS "Users can send requests" ON public.friend_requests;
 CREATE POLICY "Users can send requests" ON public.friend_requests
   FOR INSERT WITH CHECK (auth.uid() = requester_id);
+DROP POLICY IF EXISTS "Recipients can respond" ON public.friend_requests;
 CREATE POLICY "Recipients can respond" ON public.friend_requests
   FOR UPDATE USING (auth.uid() = addressee_id);
 
 -- Interactions Policies
+DROP POLICY IF EXISTS "Anyone can view interactions" ON public.feed_likes;
 CREATE POLICY "Anyone can view interactions" ON public.feed_likes FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can view comments" ON public.feed_comments;
 CREATE POLICY "Anyone can view comments" ON public.feed_comments FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Auth users can like" ON public.feed_likes;
 CREATE POLICY "Auth users can like" ON public.feed_likes FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can remove likes" ON public.feed_likes;
 CREATE POLICY "Users can remove likes" ON public.feed_likes FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Auth users can comment" ON public.feed_comments;
 CREATE POLICY "Auth users can comment" ON public.feed_comments FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own comments" ON public.feed_comments;
 CREATE POLICY "Users can delete own comments" ON public.feed_comments FOR DELETE USING (auth.uid() = user_id);
 
 -- 5. Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.feed_likes;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.feed_comments;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'feed_likes') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.feed_likes;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'feed_comments') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.feed_comments;
+    END IF;
+END $$;
 
 -- 6. Trigger for updates
+DROP TRIGGER IF EXISTS update_friend_requests_updated_at ON public.friend_requests;
 CREATE TRIGGER update_friend_requests_updated_at BEFORE UPDATE ON public.friend_requests
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_feed_comments_updated_at ON public.feed_comments;
 CREATE TRIGGER update_feed_comments_updated_at BEFORE UPDATE ON public.feed_comments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -159,7 +159,7 @@ export default function LeaderboardPage() {
                                 </div>
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-2">
-                                        <a href={`/analysis?username=${friend.login}`} className="font-bold text-white text-xs md:text-sm tracking-widest hover:underline decoration-white underline-offset-4">@{friend.login}</a>
+                                        <a href={`/profile/${friend.login}`} className="font-bold text-white text-xs md:text-sm tracking-widest hover:underline decoration-white underline-offset-4">@{friend.login}</a>
                                         {index < 3 && <span className="text-[10px] bg-white text-black px-1 font-bold">TOP {index + 1}</span>}
                                     </div>
                                     <span className="text-[10px] text-gray-500 tracking-wider hidden sm:block font-mono">

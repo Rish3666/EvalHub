@@ -30,29 +30,39 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
     const params = await props.params;
     const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { content, reply_to_id, attachments } = await request.json()
+    try {
+        const { content, reply_to_id, attachments } = await request.json()
 
-    const { data, error } = await supabase
-        .from('messages')
-        .insert({
-            community_id: params.id,
-            user_id: session.user.id,
-            content,
-            reply_to_id: reply_to_id || null,
-            attachments: attachments || []
-        })
-        .select()
-        .single()
+        if (!content && (!attachments || attachments.length === 0)) {
+            return NextResponse.json({ error: 'Content or attachments required' }, { status: 400 })
+        }
 
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        const { data, error } = await supabase
+            .from('messages')
+            .insert({
+                community_id: params.id,
+                user_id: user.id,
+                content: content || '',
+                reply_to_id: reply_to_id || null,
+                attachments: attachments || []
+            })
+            .select('*, users(github_username, avatar_url, full_name)')
+            .single()
+
+        if (error) {
+            console.error("Message Insert Error:", error)
+            return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        return NextResponse.json(data)
+    } catch (err: any) {
+        console.error("Message API Error:", err)
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
     }
-
-    return NextResponse.json(data)
 }

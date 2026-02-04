@@ -1,16 +1,25 @@
+"use client"
 import { TerminalHeader } from "@/components/TerminalHeader";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const pathname = usePathname();
+    const isCommunityChat = pathname?.startsWith('/community/') && pathname !== '/community';
+
     return (
         <div className="min-h-screen bg-black text-white font-mono flex flex-col">
             <TerminalHeader />
 
             {/* Main Content Area */}
-            <div className="flex-1 w-full max-w-[1440px] mx-auto p-4 md:p-8 flex flex-col gap-8 relative z-10">
+            <div className={cn(
+                "flex-1 w-full flex flex-col relative z-10",
+                !isCommunityChat && "max-w-[1440px] mx-auto p-4 md:p-8 flex flex-col gap-8"
+            )}>
                 {children}
             </div>
 

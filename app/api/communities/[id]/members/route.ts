@@ -13,7 +13,9 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
                 id,
                 github_username,
                 full_name,
-                avatar_url
+                avatar_url,
+                online_status,
+                last_seen
             )
         `)
         .eq('community_id', params.id)

@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
   content TEXT NOT NULL,
   attachments JSONB DEFAULT '[]'::JSONB,
+  reply_to_id BIGINT REFERENCES public.messages(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -48,17 +49,27 @@ ALTER TABLE public.community_follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
 -- Communities Policies
+DROP POLICY IF EXISTS "Public Read Communities" ON public.communities;
 CREATE POLICY "Public Read Communities" ON public.communities FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Auth Create Communities" ON public.communities;
 CREATE POLICY "Auth Create Communities" ON public.communities FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- Members & Follows Policies
+DROP POLICY IF EXISTS "Public View Members" ON public.community_members;
 CREATE POLICY "Public View Members" ON public.community_members FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can join communities" ON public.community_members;
 CREATE POLICY "Users can join communities" ON public.community_members FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Public View Follows" ON public.community_follows;
 CREATE POLICY "Public View Follows" ON public.community_follows FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can follow" ON public.community_follows;
 CREATE POLICY "Users can follow" ON public.community_follows FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can unfollow" ON public.community_follows;
+CREATE POLICY "Users can unfollow" ON public.community_follows FOR DELETE USING (auth.uid() = user_id);
 
 -- Messages Policies
+DROP POLICY IF EXISTS "Public Read Messages" ON public.messages;
 CREATE POLICY "Public Read Messages" ON public.messages FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Auth Send Messages" ON public.messages;
 CREATE POLICY "Auth Send Messages" ON public.messages FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- 6. Storage Setup (Communities Bucket)
@@ -66,12 +77,25 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('communities', 'communities', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Storage Public Access" ON storage.objects;
 CREATE POLICY "Storage Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'communities');
+DROP POLICY IF EXISTS "Storage Auth Upload" ON storage.objects;
 CREATE POLICY "Storage Auth Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'communities' AND auth.role() = 'authenticated');
 
 -- 7. Realtime Configuration
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND schemaname = 'public' 
+        AND tablename = 'messages'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+    END IF;
+END $$;
 
 -- 8. Triggers for updates
+DROP TRIGGER IF EXISTS update_communities_updated_at ON public.communities;
 CREATE TRIGGER update_communities_updated_at BEFORE UPDATE ON public.communities
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

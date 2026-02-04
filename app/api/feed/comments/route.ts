@@ -20,7 +20,7 @@ export async function GET(request: Request) {
                 created_at,
                 user:users (
                     id,
-                    username,
+                    full_name,
                     avatar_url,
                     github_username
                 )
@@ -29,6 +29,7 @@ export async function GET(request: Request) {
             .order('created_at', { ascending: true })
 
         if (error) {
+            console.error("Fetch Comments Error:", error)
             return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 })
         }
 
@@ -43,9 +44,9 @@ export async function POST(request: Request) {
     try {
         const { repoId, content } = await request.json()
         const supabase = await createClient()
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { user } } = await supabase.auth.getUser()
 
-        if (!session) {
+        if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
             .from('feed_comments')
             .insert({
                 repo_id: repoId,
-                user_id: session.user.id,
+                user_id: user.id,
                 content: content.trim()
             })
             .select(`
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
                 created_at,
                 user:users (
                     id,
-                    username,
+                    full_name,
                     avatar_url,
                     github_username
                 )
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
             .single()
 
         if (error) {
-            console.error("Comment Error", error)
+            console.error("Comment Insert Error:", error)
             return NextResponse.json({ error: 'Failed to post comment' }, { status: 500 })
         }
 

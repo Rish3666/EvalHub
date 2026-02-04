@@ -340,7 +340,7 @@ export default function CommunityPage() {
                                         <span className="text-[8px] text-gray-500 font-mono uppercase">NOT_IN_CORE</span>
                                     </div>
                                     <button
-                                        onClick={() => router.push(`/analysis?username=${friend.login}`)}
+                                        onClick={() => router.push(`/profile/${friend.login}`)}
                                         className="w-full border border-white/30 text-white/50 py-2 text-[10px] font-bold tracking-widest hover:border-white hover:text-white transition-colors uppercase"
                                     >
                                         Inspect_

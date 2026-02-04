@@ -90,7 +90,7 @@ export function TerminalHeader() {
     const handleNavigate = (username: string) => {
         setShowResults(false)
         setQuery('')
-        router.push(`/analysis?username=${username}`)
+        router.push(`/profile/${username}`)
     }
 
     return (
@@ -115,7 +115,7 @@ export function TerminalHeader() {
                             if (event.key === 'Enter' && query.trim()) {
                                 event.preventDefault()
                                 setShowResults(false)
-                                router.push(`/analysis?username=${encodeURIComponent(query.trim())}`)
+                                router.push(`/profile/${encodeURIComponent(query.trim())}`)
                             }
                         }}
                     />
@@ -160,11 +160,11 @@ export function TerminalHeader() {
                                     type="button"
                                     onClick={() => {
                                         setShowResults(false)
-                                        router.push(`/analysis?username=${encodeURIComponent(query.trim())}`)
+                                        router.push(`/profile/${encodeURIComponent(query.trim())}`)
                                     }}
                                     className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 border-t border-white/20 hover:bg-white hover:text-black transition-colors"
                                 >
-                                    <span className="text-sm font-mono tracking-widest">ANALYZE_GITHUB_USER</span>
+                                    <span className="text-sm font-mono tracking-widest">VIEW_PROFILE</span>
                                     <span className="text-xs text-gray-400">@{query.trim()}</span>
                                 </button>
                             )}

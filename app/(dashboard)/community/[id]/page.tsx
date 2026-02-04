@@ -25,6 +25,8 @@ interface Member {
     github_username: string;
     full_name: string;
     avatar_url: string;
+    online_status?: string;
+    last_seen?: string;
 }
 
 interface Community {
@@ -252,13 +254,17 @@ export default function CommunityChatPage() {
             })
 
             if (!res.ok) {
-                toast.error("Failed to send message")
+                const err = await res.json()
+                toast.error(`Signal failed: ${err.error || 'Check system logs'}`)
                 setNewMessage(content) // Restore
             } else {
+                toast.success('Message transmitted successfully')
                 await fetchMessages()
             }
         } catch (error) {
-            toast.error("Network error")
+            console.error("Message Error:", error)
+            toast.error("Transmission timeout. Node potentially offline.")
+            setNewMessage(content) // Restore
         }
     }
 
@@ -288,15 +294,15 @@ export default function CommunityChatPage() {
     )
 
     return (
-        <div className="flex flex-col h-[calc(100vh-80px)] w-full max-w-[1200px] mx-auto pt-4 relative bg-black font-mono">
+        <div className="flex flex-col h-[calc(100vh-64px)] w-full relative bg-black font-mono overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white px-6 py-4 bg-black z-20">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 border border-white flex items-center justify-center font-bold text-2xl shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)]">
+            <div className="flex items-center justify-between border-b border-white px-6 py-2 bg-black z-20">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 border border-white flex items-center justify-center font-bold text-lg shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]">
                         <Hash className="w-6 h-6" />
                     </div>
                     <div>
-                        <h1 className="text-white text-xl font-bold tracking-[0.2em] uppercase">
+                        <h1 className="text-white text-sm font-bold tracking-[0.2em] uppercase">
                             {community?.name || `COMMUNITY_${communityId.slice(0, 8)}`}
                         </h1>
                         <div className="flex items-center gap-3">
@@ -325,117 +331,155 @@ export default function CommunityChatPage() {
                 </div>
             </div>
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center h-full text-white font-mono gap-6 animate-pulse">
-                        <div className="w-12 h-12 border-4 border-t-white border-white/10 rounded-full animate-spin"></div>
-                        <p className="tracking-[0.5em] text-sm font-bold">DECRYPTING_COMMUNICATION_STREAM...</p>
-                    </div>
-                ) : messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full border border-dashed border-white/10 m-4 opacity-50">
-                        <Smile className="w-12 h-12 mb-4 text-gray-500" />
-                        <p className="font-bold tracking-widest uppercase text-sm">Empty_Node</p>
-                        <p className="text-xs mt-2 text-gray-600">Be the first to transmit a signal.</p>
-                    </div>
-                ) : (
-                    messages.map((msg, index) => {
-                        const isMe = msg.user_id === currentUser?.id;
-                        const prevMsg = messages[index - 1];
-                        const showHeader = !prevMsg || prevMsg.user_id !== msg.user_id || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() > 60000 * 5);
+            {/* Main Workspace */}
+            <div className="flex-1 flex overflow-hidden">
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center h-full text-white font-mono gap-6 animate-pulse">
+                            <div className="w-12 h-12 border-4 border-t-white border-white/10 rounded-full animate-spin"></div>
+                            <p className="tracking-[0.5em] text-sm font-bold">DECRYPTING_COMMUNICATION_STREAM...</p>
+                        </div>
+                    ) : messages.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full border border-dashed border-white/10 m-4 opacity-50">
+                            <Smile className="w-12 h-12 mb-4 text-gray-500" />
+                            <p className="font-bold tracking-widest uppercase text-sm">Empty_Node</p>
+                            <p className="text-xs mt-2 text-gray-600">Be the first to transmit a signal.</p>
+                        </div>
+                    ) : (
+                        messages.map((msg, index) => {
+                            const isMe = msg.user_id === currentUser?.id;
+                            const prevMsg = messages[index - 1];
+                            const showHeader = !prevMsg || prevMsg.user_id !== msg.user_id || (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() > 60000 * 5);
 
-                        return (
-                            <div key={msg.id} className={`group flex flex-col ${showHeader ? 'mt-8' : 'mt-1'} px-4`}>
-                                <div className={`flex gap-4 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-start group-hover:bg-white/5 transition-all py-2 rounded-lg relative`}>
-                                    {/* Avatar */}
-                                    <div className="w-10 h-10 flex-shrink-0">
-                                        {showHeader ? (
-                                            <div className={`w-10 h-10 border ${isMe ? 'border-blue-500' : 'border-white'} overflow-hidden bg-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]`}>
-                                                {msg.users?.avatar_url ? (
-                                                    <img src={msg.users.avatar_url} alt={msg.users.github_username} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-white text-black font-bold text-xs">
-                                                        {msg.users?.github_username?.[0]?.toUpperCase() || '?'}
+                            return (
+                                <div key={msg.id} className={`group flex flex-col ${showHeader ? 'mt-8' : 'mt-1'} px-4`}>
+                                    <div className={`flex gap-4 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-start group-hover:bg-white/5 transition-all py-2 rounded-lg relative`}>
+                                        {/* Avatar */}
+                                        <div className="w-10 h-10 flex-shrink-0">
+                                            {showHeader ? (
+                                                <div className={`w-10 h-10 border ${isMe ? 'border-blue-500' : 'border-white'} overflow-hidden bg-white shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]`}>
+                                                    {msg.users?.avatar_url ? (
+                                                        <img src={msg.users.avatar_url} alt={msg.users.github_username} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center bg-white text-black font-bold text-xs">
+                                                            {msg.users?.github_username?.[0]?.toUpperCase() || '?'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : null}
+                                        </div>
+
+                                        {/* Message Content */}
+                                        <div className={`flex flex-col max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
+                                            {showHeader && (
+                                                <div className={`flex items-center gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
+                                                    <span className={`text-[11px] font-black uppercase tracking-wider ${isMe ? 'text-blue-400' : 'text-white'}`}>
+                                                        {isMe ? 'YOU' : (msg.users?.github_username || 'UNKNOWN')}
+                                                    </span>
+                                                    <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">
+                                                        {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* Reply Context */}
+                                            {msg.reply_to_id && (
+                                                <div
+                                                    className={`mb-2 p-2 border-l-2 border-blue-500/30 bg-white/5 text-[10px] text-gray-500 max-w-sm cursor-pointer hover:bg-white/10 transition-colors ${isMe ? 'text-right border-r-2 border-l-0' : 'text-left'}`}
+                                                    onClick={() => {
+                                                        const parent = document.getElementById(`msg-${msg.reply_to_id}`);
+                                                        parent?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-2 mb-1 opacity-70">
+                                                        <Reply className="w-3 h-3" />
+                                                        <span className="font-bold">REPLY_TO</span>
+                                                    </div>
+                                                    <p className="truncate line-clamp-1 italic">
+                                                        {messages.find(m => m.id === msg.reply_to_id)?.content || 'Original transmission lost...'}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <div id={`msg-${msg.id}`} className={`relative group/bubble p-3 rounded-md ${isMe
+                                                ? 'bg-blue-900/20 border border-blue-500/30 text-right selection:bg-blue-500'
+                                                : 'bg-white/5 border border-white/10 text-left selection:bg-white'
+                                                }`}>
+                                                {msg.content && (
+                                                    <div className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
+                                                        {renderContent(msg.content)}
                                                     </div>
                                                 )}
-                                            </div>
-                                        ) : null}
-                                    </div>
+                                                {msg.attachments && msg.attachments.length > 0 && (
+                                                    <div className={`flex flex-wrap gap-2 mt-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                        {msg.attachments.map((url, i) => (
+                                                            <div key={i} className="max-w-[200px] border border-white/20 bg-black p-0.5 hover:border-white transition-colors cursor-zoom-in">
+                                                                <img
+                                                                    src={url}
+                                                                    alt="Attachment"
+                                                                    className="w-full object-contain"
+                                                                    onClick={() => window.open(url, '_blank')}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
 
-                                    {/* Message Content */}
-                                    <div className={`flex flex-col max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
-                                        {showHeader && (
-                                            <div className={`flex items-center gap-2 mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
-                                                <span className={`text-[11px] font-black uppercase tracking-wider ${isMe ? 'text-blue-400' : 'text-white'}`}>
-                                                    {isMe ? 'YOU' : (msg.users?.github_username || 'UNKNOWN')}
-                                                </span>
-                                                <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest">
-                                                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {/* Reply Context */}
-                                        {msg.reply_to_id && (
-                                            <div
-                                                className={`mb-2 p-2 border-l-2 border-blue-500/30 bg-white/5 text-[10px] text-gray-500 max-w-sm cursor-pointer hover:bg-white/10 transition-colors ${isMe ? 'text-right border-r-2 border-l-0' : 'text-left'}`}
-                                                onClick={() => {
-                                                    const parent = document.getElementById(`msg-${msg.reply_to_id}`);
-                                                    parent?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-2 mb-1 opacity-70">
-                                                    <Reply className="w-3 h-3" />
-                                                    <span className="font-bold">REPLY_TO</span>
+                                                {/* Hover Action */}
+                                                <div className={`absolute top-0 ${isMe ? '-left-10' : '-right-10'} opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
+                                                    <button
+                                                        onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }}
+                                                        className="p-1.5 bg-black border border-white/20 hover:border-white text-gray-500 hover:text-white transition-colors"
+                                                        title="Reply"
+                                                    >
+                                                        <Reply className="w-4 h-4" />
+                                                    </button>
                                                 </div>
-                                                <p className="truncate line-clamp-1 italic">
-                                                    {messages.find(m => m.id === msg.reply_to_id)?.content || 'Original transmission lost...'}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        <div id={`msg-${msg.id}`} className={`relative group/bubble p-3 rounded-md ${isMe
-                                            ? 'bg-blue-900/20 border border-blue-500/30 text-right selection:bg-blue-500'
-                                            : 'bg-white/5 border border-white/10 text-left selection:bg-white'
-                                            }`}>
-                                            {msg.content && (
-                                                <div className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
-                                                    {renderContent(msg.content)}
-                                                </div>
-                                            )}
-                                            {msg.attachments && msg.attachments.length > 0 && (
-                                                <div className={`flex flex-wrap gap-2 mt-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                    {msg.attachments.map((url, i) => (
-                                                        <div key={i} className="max-w-[200px] border border-white/20 bg-black p-0.5 hover:border-white transition-colors cursor-zoom-in">
-                                                            <img
-                                                                src={url}
-                                                                alt="Attachment"
-                                                                className="w-full object-contain"
-                                                                onClick={() => window.open(url, '_blank')}
-                                                            />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {/* Hover Action */}
-                                            <div className={`absolute top-0 ${isMe ? '-left-10' : '-right-10'} opacity-0 group-hover/bubble:opacity-100 transition-opacity`}>
-                                                <button
-                                                    onClick={() => { setReplyTo(msg); inputRef.current?.focus(); }}
-                                                    className="p-1.5 bg-black border border-white/20 hover:border-white text-gray-500 hover:text-white transition-colors"
-                                                    title="Reply"
-                                                >
-                                                    <Reply className="w-4 h-4" />
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )
-                    })
-                )}
-                <div ref={messagesEndRef} />
+                            )
+                        })
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Left Sidebar - Members List */}
+                <div className="w-64 border-l border-white/20 bg-black flex flex-col hidden lg:flex">
+                    <div className="p-4 border-b border-white/10 bg-white/5">
+                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 flex items-center gap-2">
+                            <User className="w-3 h-3" />
+                            Active_Nodes_List
+                        </h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+                        {members.map((member) => {
+                            const isOnline = member.online_status === 'online' || (member.last_seen && (new Date().getTime() - new Date(member.last_seen).getTime() < 5 * 60 * 1000));
+                            return (
+                                <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-white/5 transition-colors group cursor-pointer" onClick={() => router.push(`/profile/${member.github_username}`)}>
+                                    <div className="relative">
+                                        <div className={`w-8 h-8 border ${isOnline ? 'border-green-500' : 'border-white/20'} overflow-hidden`}>
+                                            <img src={member.avatar_url} alt={member.github_username} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all" />
+                                        </div>
+                                        {isOnline && (
+                                            <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-green-500 rounded-full border border-black animate-pulse"></div>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className={`text-[11px] font-bold truncate ${isOnline ? 'text-white' : 'text-gray-500'}`}>
+                                            @{member.github_username}
+                                        </span>
+                                        <span className="text-[8px] text-gray-600 uppercase tracking-widest truncate">
+                                            {isOnline ? 'Sychronized' : 'Standby'}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
 
             {/* Mention List Dropdown */}
@@ -481,7 +525,7 @@ export default function CommunityChatPage() {
                 )}
 
                 <form onSubmit={handleSendMessage} className="relative group">
-                    <div className="flex items-end gap-3 bg-white/5 border-2 border-white/20 p-4 focus-within:border-white focus-within:bg-black transition-all">
+                    <div className="flex items-center gap-3 bg-white/5 border-2 border-white/20 p-2 focus-within:border-white focus-within:bg-black transition-all">
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -506,14 +550,14 @@ export default function CommunityChatPage() {
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
                                 placeholder={uploading ? 'UPLOADING_DATA...' : replyTo ? 'Transmission_Linked...' : 'BROADCAST_SIGNAL...'}
-                                className="w-full bg-transparent border-none text-white focus:outline-none py-2 px-1 font-mono text-sm placeholder:text-gray-800 tracking-widest uppercase"
+                                className="w-full bg-transparent border-none text-white focus:outline-none py-1 px-1 font-mono text-sm placeholder:text-gray-800 tracking-widest uppercase"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={(!newMessage.trim() && !uploading) || uploading}
-                            className="bg-white text-black p-3 hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-500 transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] active:shadow-none active:translate-x-1 active:translate-y-1"
+                            className="bg-white text-black p-2 hover:bg-gray-200 disabled:bg-gray-800 disabled:text-gray-500 transition-all shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] active:shadow-none active:translate-x-1 active:translate-y-1"
                         >
                             <Send className="w-5 h-5" />
                         </button>

@@ -67,15 +67,21 @@ ALTER TABLE public.scorecards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_analysis ENABLE ROW LEVEL SECURITY;
 
 -- Shared public view policies
+DROP POLICY IF EXISTS "Anyone can view projects" ON public.projects;
 CREATE POLICY "Anyone can view projects" ON public.projects FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can view analyses" ON public.project_analyses;
 CREATE POLICY "Anyone can view analyses" ON public.project_analyses FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone can view scorecards" ON public.scorecards;
 CREATE POLICY "Anyone can view scorecards" ON public.scorecards FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Authenticated users read cache" ON public.project_analysis;
 CREATE POLICY "Authenticated users read cache" ON public.project_analysis FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Operational policies
+DROP POLICY IF EXISTS "Users can manage their projects" ON public.projects;
 CREATE POLICY "Users can manage their projects" ON public.projects 
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Authenticated users write cache" ON public.project_analysis;
 CREATE POLICY "Authenticated users write cache" ON public.project_analysis 
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
