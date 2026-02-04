@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Sidebar } from "@/components/Sidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { UserPresenceUpdater } from "@/components/UserPresenceUpdater";
+import { AIContextProvider } from "@/components/AIContextProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 const jetbrainsMono = JetBrains_Mono({
@@ -56,9 +57,11 @@ export default function RootLayout({
                 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
             </head>
             <body className={`${inter.className} ${jetbrainsMono.variable} ${spaceGrotesk.variable} min-h-screen bg-background`}>
-                <UserPresenceUpdater />
-                {children}
-                <Toaster />
+                <AIContextProvider>
+                    <UserPresenceUpdater />
+                    {children}
+                    <Toaster />
+                </AIContextProvider>
             </body>
         </html>
     );

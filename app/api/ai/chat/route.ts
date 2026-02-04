@@ -1,9 +1,29 @@
 import Groq from "groq-sdk";
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
+
+// Helper to get env var even if server hasn't restarted
+function getGroqKey() {
+    if (process.env.GROQ_API_KEY) return process.env.GROQ_API_KEY;
+    try {
+        const envPath = path.join(process.cwd(), '.env.local');
+        if (fs.existsSync(envPath)) {
+            const file = fs.readFileSync(envPath, 'utf8');
+            const match = file.match(/^GROQ_API_KEY=(.*)$/m);
+            if (match) return match[1].trim();
+        }
+    } catch (e) {
+        console.error("Failed to manual load .env.local", e);
+    }
+    return "";
+}
 
 const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY
+    apiKey: getGroqKey()
 });
+
+console.log("Groq Key Loaded:", !!process.env.GROQ_API_KEY);
 
 async function getAIResponse(message: string, context: any, history: any[]) {
     try {
@@ -33,14 +53,19 @@ async function getAIResponse(message: string, context: any, history: any[]) {
                     content: message
                 }
             ],
-            model: "llama3-8b-8192", // Fast and efficient model
+            model: "llama-3.1-8b-instant", // Updated to supported model
             temperature: 0.7,
             max_tokens: 500,
         });
 
         return completion.choices[0]?.message?.content || "I couldn't generate a response.";
-    } catch (error) {
-        console.error('Groq API Error:', error);
+    } catch (error: any) {
+        console.error('Groq API Error Details:', {
+            message: error.message,
+            type: error.type,
+            code: error.code,
+            apiKeyExists: !!process.env.GROQ_API_KEY
+        });
         throw error;
     }
 }
@@ -60,7 +85,6 @@ export async function POST(request: Request) {
         console.error('AI Chat API error:', error);
         return NextResponse.json(
             {
-                error: 'Failed to get AI response',
                 message: 'The AI assistant is temporarily unavailable. Please verify API keys.'
             },
             { status: 500 }

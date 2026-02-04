@@ -718,15 +718,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
                 </div>
             )}
 
-            {/* AI Assistant - Always Available */}
-            <AIAssistant
-                context={analyzingRepo && remoteAnalysis ? {
-                    repositoryName: analyzingRepo.name,
-                    qualityScore: remoteAnalysis.qualityScore,
-                    qualityBreakdown: remoteAnalysis.qualityBreakdown,
-                    languages: remoteAnalysis.languages
-                } : undefined}
-            />
+            {/* AI Assistant is now global */}
         </div >
     )
 }
