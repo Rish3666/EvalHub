@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { X, Send, MessageSquare, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
     role: 'user' | 'assistant'
@@ -118,15 +120,7 @@ export function AIAssistant({ context }: AIAssistantProps) {
     }
 
     if (!isOpen) {
-        return (
-            <button
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 z-50 bg-white text-black p-4 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all group"
-                aria-label="Open AI Assistant"
-            >
-                <Sparkles className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-            </button>
-        )
+        return null;
     }
 
     return (
@@ -201,7 +195,11 @@ export function AIAssistant({ context }: AIAssistantProps) {
                                                 : 'bg-white/5 text-white border border-white/20'
                                         )}
                                     >
-                                        <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                                        <div className="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:p-2 max-w-none">
+                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                {msg.content}
+                                            </ReactMarkdown>
+                                        </div>
                                         <p className="text-[9px] text-gray-500 mt-2 uppercase tracking-wider">
                                             {msg.timestamp.toLocaleTimeString()}
                                         </p>
