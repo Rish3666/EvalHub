@@ -8,6 +8,8 @@ import { UserPlus, Check, MessageSquare, Clock, Wifi, Search, Github, ExternalLi
 import { useToast } from '@/hooks/use-toast'
 import { toast } from 'sonner'
 import { AIAssistant } from '@/components/AIAssistant'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface GitHubUser {
     login: string;
@@ -536,9 +538,21 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
                                                     <h3 className="text-sm font-black tracking-[0.4em] uppercase text-white/60">System_Summary</h3>
                                                 </div>
                                                 <div className="border-l-2 border-white/10 pl-8 relative">
-                                                    <p className="text-xl leading-relaxed font-light tracking-wide text-gray-300">
-                                                        {remoteAnalysis.architectureNotes || "NO_README_ANALYSIS_AVAILABLE"}
-                                                    </p>
+                                                    <div className="text-gray-300 text-sm leading-relaxed space-y-4">
+                                                        <ReactMarkdown
+                                                            remarkPlugins={[remarkGfm]}
+                                                            components={{
+                                                                ul: ({ node, ...props }) => <ul className="list-disc pl-4 space-y-2 my-2 text-white/90" {...props} />,
+                                                                ol: ({ node, ...props }) => <ol className="list-decimal pl-4 space-y-2 my-2 text-white/90" {...props} />,
+                                                                li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+                                                                h3: ({ node, ...props }) => <h3 className="text-sm font-black text-white mt-4 mb-2 uppercase tracking-wider flex items-center gap-2" {...props} />,
+                                                                strong: ({ node, ...props }) => <strong className="font-bold text-white" {...props} />,
+                                                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                            }}
+                                                        >
+                                                            {remoteAnalysis.architectureNotes || "NO_README_ANALYSIS_AVAILABLE"}
+                                                        </ReactMarkdown>
+                                                    </div>
                                                 </div>
                                             </section>
 
