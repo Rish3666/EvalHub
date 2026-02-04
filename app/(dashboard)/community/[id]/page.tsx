@@ -184,10 +184,6 @@ function useChatProtocol(communityId: string) {
             }
 
             // Success: Remove optimistic message (Realtime will add the real one)
-            // Ideally we substitute, but for simplicity we can just wait for realtime.
-            // Using a simple timeout to clear optimistic message to avoid flickering before realtime arrives or if it arrived already.
-            // A better way is to replace based on content match or just let it exist for a moment.
-            // We'll replace it with the response data which mimics the real record.
             const realData = await res.json()
 
             setMessages(prev => prev.map(m =>
@@ -202,13 +198,38 @@ function useChatProtocol(communityId: string) {
         }
     }, [communityId, currentUser])
 
+    // 4. Upload Function
+    const uploadAttachment = useCallback(async (file: File) => {
+        try {
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${communityId}/${Date.now()}.${fileExt}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('communities')
+                .upload(fileName, file)
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('communities')
+                .getPublicUrl(fileName)
+
+            return publicUrl
+        } catch (error) {
+            console.error("Upload Failed:", error)
+            toast.error("Upload failed")
+            return null
+        }
+    }, [communityId])
+
     return {
         status,
         messages,
         members,
         community,
         currentUser,
-        sendMessage
+        sendMessage,
+        uploadAttachment
     }
 }
 
@@ -220,12 +241,22 @@ export default function CommunityChatPage() {
     const communityId = (Array.isArray(params.id) ? params.id[0] : params.id) || ''
 
     // Use our new robust protocol hook
-    const { status, messages, members, community, currentUser, sendMessage } = useChatProtocol(communityId)
+    const { status, messages, members, community, currentUser, sendMessage, uploadAttachment } = useChatProtocol(communityId)
 
     const [newMessage, setNewMessage] = useState('')
     const [replyTo, setReplyTo] = useState<Message | null>(null)
+    const [isUploading, setIsUploading] = useState(false)
+
+    // Mention State
+    const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+    const [mentionIndex, setMentionIndex] = useState(0) // Tracks cursor position of @
+    const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
+    const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
+
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const router = useRouter()
 
     // Scroll Logic
@@ -247,8 +278,96 @@ export default function CommunityChatPage() {
         await sendMessage(content, [], reply)
     }
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        if (!file.type.startsWith('image/')) {
+            toast.error("Please select an image")
+            return
+        }
+
+        setIsUploading(true)
+        try {
+            const publicUrl = await uploadAttachment(file)
+            if (publicUrl) {
+                const content = newMessage.trim()
+                setNewMessage('')
+                setReplyTo(null)
+
+                await sendMessage(content, [publicUrl], replyTo)
+                toast.success("Image transmitted")
+            }
+        } finally {
+            setIsUploading(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+    }
+
+    // Mention Logic
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value
+        setNewMessage(val)
+
+        // Detect @ trigger
+        const cursor = e.target.selectionStart || 0
+        const textBeforeCursor = val.slice(0, cursor)
+        const match = textBeforeCursor.match(/@(\w*)$/)
+
+        if (match) {
+            setMentionQuery(match[1])
+            setMentionIndex(match.index!)
+            const query = match[1].toLowerCase()
+            const filtered = members.filter(m =>
+                m.github_username.toLowerCase().includes(query) ||
+                m.full_name.toLowerCase().includes(query)
+            ).slice(0, 5) // Limit to 5 results
+            setFilteredMembers(filtered)
+            setSelectedMentionIndex(0)
+        } else {
+            setMentionQuery(null)
+        }
+    }
+
+    const insertMention = (username: string) => {
+        if (mentionQuery === null) return
+
+        const before = newMessage.slice(0, mentionIndex)
+        // Add @username + space, remove query text
+        const after = newMessage.slice(mentionIndex + mentionQuery.length + 1)
+        const newText = `${before}@${username} ${after}`
+
+        setNewMessage(newText)
+        setMentionQuery(null)
+        inputRef.current?.focus()
+    }
+
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        // Fix: Send on plain Enter (unless Shift is held for new line)
+        // Handle Mention Navigation
+        if (mentionQuery !== null && filteredMembers.length > 0) {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setSelectedMentionIndex(prev => (prev - 1 + filteredMembers.length) % filteredMembers.length)
+                return
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setSelectedMentionIndex(prev => (prev + 1) % filteredMembers.length)
+                return
+            }
+            if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault()
+                insertMention(filteredMembers[selectedMentionIndex].github_username)
+                return
+            }
+            if (e.key === 'Escape') {
+                setMentionQuery(null)
+                return
+            }
+        }
+
+        // Default Send
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             handleSend()
@@ -308,6 +427,17 @@ export default function CommunityChatPage() {
                             const prevMsg = messages[index - 1];
                             const isSequence = prevMsg && prevMsg.user_id === msg.user_id && (new Date(msg.created_at).getTime() - new Date(prevMsg.created_at).getTime() < 60000 * 2);
 
+                            // Highlight Mentions in Content
+                            const highlightMentions = (text: string) => {
+                                const parts = text.split(/(@\w+)/g);
+                                return parts.map((part, i) => {
+                                    if (part.startsWith('@')) {
+                                        return <span key={i} className="text-blue-400 font-bold bg-blue-500/10 px-0.5 rounded">{part}</span>
+                                    }
+                                    return part
+                                })
+                            }
+
                             return (
                                 <div key={msg.id} className={`flex flex-col ${isSequence ? 'mt-1' : 'mt-6'} ${isMe ? 'items-end' : 'items-start'}`}>
                                     {/* Reply Context */}
@@ -350,8 +480,25 @@ export default function CommunityChatPage() {
                                             )}
 
                                             <p className="text-sm shadow-black drop-shadow-md whitespace-pre-wrap leading-relaxed">
-                                                {msg.content}
+                                                {highlightMentions(msg.content)}
                                             </p>
+
+                                            {/* Attachments */}
+                                            {msg.attachments && msg.attachments.length > 0 && (
+                                                <div className={`flex flex-wrap gap-2 mt-3 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                    {msg.attachments.map((url, i) => (
+                                                        <div key={i} className="max-w-[200px] border border-white/10 p-0.5 bg-black hover:border-white transition-colors cursor-zoom-in">
+                                                            <a href={url} target="_blank" rel="noopener noreferrer">
+                                                                <img
+                                                                    src={url}
+                                                                    alt="Attachment"
+                                                                    className="w-full h-auto object-cover max-h-48"
+                                                                />
+                                                            </a>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
 
                                             {/* Footer/Status */}
                                             <div className="mt-1 flex justify-end gap-2 items-center text-[8px] text-gray-500">
@@ -402,7 +549,26 @@ export default function CommunityChatPage() {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 bg-black border-t border-white/20 z-20">
+            <div className="p-6 bg-black border-t border-white/20 z-20 relative">
+                {/* Mention Popup */}
+                {mentionQuery !== null && filteredMembers.length > 0 && (
+                    <div className="absolute bottom-full left-6 mb-2 w-64 bg-black border border-white/20 shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 z-50">
+                        {filteredMembers.map((member, i) => (
+                            <div
+                                key={member.id}
+                                className={`flex items-center gap-3 p-2 cursor-pointer transition-colors ${i === selectedMentionIndex ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                                onClick={() => insertMention(member.github_username)}
+                            >
+                                <img src={member.avatar_url} className="w-6 h-6 rounded-none border border-white/20" />
+                                <div>
+                                    <p className="text-xs font-bold text-white">@{member.github_username}</p>
+                                    <p className="text-[8px] text-gray-500 uppercase">{member.full_name}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 {replyTo && (
                     <div className="flex items-center justify-between mb-2 bg-blue-900/20 border-l-2 border-blue-500 px-3 py-2 animate-in slide-in-from-bottom-2">
                         <span className="text-xs text-blue-300 font-mono">
@@ -413,7 +579,19 @@ export default function CommunityChatPage() {
                 )}
 
                 <form onSubmit={handleSend} className="relative flex items-center gap-4 bg-white/5 border border-white/20 p-3 hover:border-white/40 focus-within:border-white transition-colors">
-                    <button type="button" className="text-gray-500 hover:text-white transition-colors">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className={`text-gray-500 hover:text-white transition-colors ${isUploading ? 'animate-pulse text-green-500' : ''}`}
+                    >
                         <ImageIcon className="w-5 h-5" />
                     </button>
 
@@ -421,15 +599,15 @@ export default function CommunityChatPage() {
                         ref={inputRef}
                         type="text"
                         value={newMessage}
-                        onChange={e => setNewMessage(e.target.value)}
+                        onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
-                        placeholder="TRANSMIT_DATA..."
+                        placeholder={isUploading ? 'UPLOADING_ASSET...' : 'TRANSMIT_DATA...'}
                         className="flex-1 bg-transparent border-none outline-none text-white font-mono placeholder-gray-600 text-sm"
                     />
 
                     <button
                         type="submit"
-                        disabled={!newMessage.trim()}
+                        disabled={!newMessage.trim() && !isUploading}
                         className="p-2 bg-white/10 hover:bg-white hover:text-black text-white transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white"
                     >
                         <Send className="w-5 h-5" />
@@ -438,7 +616,7 @@ export default function CommunityChatPage() {
 
                 <div className="mt-3 flex justify-between text-[9px] text-gray-600 font-bold uppercase tracking-[0.2em]">
                     <span>SECURE_UPLINK_V3</span>
-                    <span>ENTER_TO_SEND | SHIFT+ENTER_NEW_LINE</span>
+                    <span>ENTER TO SEND | SHIFT+ENTER NEW LINE | @ TO MENTION</span>
                 </div>
             </div>
         </div>

@@ -33,9 +33,15 @@ export async function GET(req: NextRequest) {
 
         const repos = await response.json();
 
+        // Safety check: Ensure repos is an array (API might return object on rate limit/error)
+        if (!Array.isArray(repos)) {
+            console.error(`GitHub API returned non-array for ${username}:`, repos);
+            return NextResponse.json({ error: "Unexpected API response format" }, { status: 502 });
+        }
+
         // Filter and map to a clean format
         const formattedRepos = repos
-            .filter((repo: any) => !repo.fork) // Usually users want to analyze their own work
+            // .filter((repo: any) => !repo.fork) // REMOVED: Include forks so profiles aren't empty
             .map((repo: any) => ({
                 id: repo.id,
                 name: repo.name,
@@ -45,6 +51,7 @@ export async function GET(req: NextRequest) {
                 language: repo.language,
                 stargazers_count: repo.stargazers_count,
                 updated_at: repo.updated_at,
+                fork: repo.fork // Explicitly return fork status
             }));
 
         return NextResponse.json(formattedRepos);
