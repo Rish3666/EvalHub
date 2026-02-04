@@ -1,65 +1,48 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import { NextResponse } from 'next/server';
 
-// Initialize with primary key, will fallback to backup if needed
-const primaryKey = process.env.GOOGLE_GEMINI_API_KEY || "";
-const backupKey = process.env.GOOGLE_GEMINI_API_KEY_BACKUP || "";
+const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY
+});
 
 async function getAIResponse(message: string, context: any, history: any[]) {
-    // Try primary key first
     try {
-        const genAI = new GoogleGenerativeAI(primaryKey);
-        return await generateResponse(genAI, message, context, history);
-    } catch (primaryError) {
-        console.log('Primary API key failed, trying backup...', primaryError);
+        const systemPrompt = buildSystemPrompt(context);
+        const conversationHistory = history?.map((msg: any) => {
+            // Map 'model' role from old history to 'assistant' for Groq/OpenAI format
+            const role = (msg.role === 'user' ? 'user' : 'assistant') as "user" | "assistant";
+            return {
+                role: role,
+                content: msg.content as string
+            };
+        }) || [];
 
-        // Fallback to backup key
-        if (backupKey) {
-            try {
-                const genAI = new GoogleGenerativeAI(backupKey);
-                return await generateResponse(genAI, message, context, history);
-            } catch (backupError) {
-                console.error('Backup API key also failed:', backupError);
-                throw new Error('Both API keys failed');
-            }
-        } else {
-            throw primaryError;
-        }
-    }
-}
-
-async function generateResponse(genAI: GoogleGenerativeAI, message: string, context: any, history: any[]) {
-    const systemPrompt = buildSystemPrompt(context);
-    const conversationHistory = history?.map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-    })) || [];
-
-    const model = genAI.getGenerativeModel({
-        model: "gemini-pro",
-        generationConfig: {
+        const completion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "system",
+                    content: systemPrompt
+                },
+                {
+                    role: "assistant",
+                    content: "Understood. I am EvalHub AI Assistant, focused on helping you understand your code quality and identify which technologies to learn. I will only answer tech-related questions and provide actionable guidance. How can I help you today?"
+                },
+                ...conversationHistory,
+                {
+                    role: "user",
+                    content: message
+                }
+            ],
+            model: "llama3-8b-8192", // Fast and efficient model
             temperature: 0.7,
-            maxOutputTokens: 500,
-        }
-    });
+            max_tokens: 500,
+        });
 
-    const chat = model.startChat({
-        history: [
-            {
-                role: 'user',
-                parts: [{ text: systemPrompt }]
-            },
-            {
-                role: 'model',
-                parts: [{ text: 'Understood. I am EvalHub AI Assistant, focused on helping you understand your code quality and identify which technologies to learn. I will only answer tech-related questions and provide actionable guidance. How can I help you today?' }]
-            },
-            ...conversationHistory
-        ],
-    });
-
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    return response.text();
+        return completion.choices[0]?.message?.content || "I couldn't generate a response.";
+    } catch (error) {
+        console.error('Groq API Error:', error);
+        throw error;
+    }
 }
 
 export async function POST(request: Request) {
@@ -78,7 +61,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
             {
                 error: 'Failed to get AI response',
-                message: 'The AI assistant is temporarily unavailable. Please try again in a moment.'
+                message: 'The AI assistant is temporarily unavailable. Please verify API keys.'
             },
             { status: 500 }
         );
