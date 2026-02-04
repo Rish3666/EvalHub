@@ -313,7 +313,7 @@ function analyzeMaintenance(metadata: any, tree: any): number {
 }
 
 /**
- * Main analysis function
+ * Main analysis function with custom architecture-focused weights
  */
 export async function analyzeRepositoryQuality(
     owner: string,
@@ -329,22 +329,26 @@ export async function analyzeRepositoryQuality(
 
         // Calculate individual scores
         const readmeQuality = analyzeREADMEQuality(readme);
+        const backendQuality = analyzeBackendArchitecture(tree);
+        const frontendQuality = analyzeFrontendArchitecture(tree);
+        const documentationQuality = analyzeDocumentation(tree);
+        const apiQuality = analyzeAPIDesign(tree);
+        const commitActivity = analyzeCommitActivity(commits);
         const codeOrganization = analyzeCodeOrganization(tree);
         const testCoverage = analyzeTestCoverage(tree);
-        const documentation = analyzeDocumentation(tree);
-        const commitActivity = analyzeCommitActivity(commits);
-        const communityEngagement = analyzeCommunityEngagement(metadata);
-        const maintenance = analyzeMaintenance(metadata, tree);
 
-        // Weighted quality score
+        // Custom weighted quality score
+        // README: 20%, Backend: 40%, Frontend: 0%, Documentation: 5%, API: 5%,
+        // Commit Activity: 10%, Code Organization: 10%, Test Coverage: 10%
         const qualityScore = Math.round(
             readmeQuality * 0.20 +
-            codeOrganization * 0.20 +
-            testCoverage * 0.15 +
-            documentation * 0.15 +
+            backendQuality * 0.40 +
+            frontendQuality * 0.00 +
+            documentationQuality * 0.05 +
+            apiQuality * 0.05 +
             commitActivity * 0.10 +
-            communityEngagement * 0.10 +
-            maintenance * 0.10
+            codeOrganization * 0.10 +
+            testCoverage * 0.10
         );
 
         // Determine complexity
@@ -373,10 +377,10 @@ export async function analyzeRepositoryQuality(
             readmeQuality,
             codeOrganization,
             testCoverage,
-            documentation,
+            documentation: documentationQuality,
             commitActivity,
-            communityEngagement,
-            maintenance,
+            communityEngagement: 0, // Not used in custom weights
+            maintenance: backendQuality, // Use backend quality for maintenance score
             details
         };
     } catch (error) {
@@ -403,4 +407,114 @@ export async function analyzeRepositoryQuality(
             }
         };
     }
+}
+
+/**
+ * Analyze backend architecture quality (40% weight)
+ */
+function analyzeBackendArchitecture(tree: any): number {
+    const files = tree.tree || [];
+    const paths = files.map((f: any) => f.path.toLowerCase());
+    let score = 0;
+
+    // Backend framework detection (25 points)
+    const hasExpress = paths.some((p: string) => p.includes('express'));
+    const hasNestJS = paths.some((p: string) => p.includes('nest'));
+    const hasFastify = paths.some((p: string) => p.includes('fastify'));
+    const hasNextAPI = paths.some((p: string) => p.includes('app/api/') || p.includes('pages/api/'));
+
+    if (hasExpress || hasNestJS || hasFastify || hasNextAPI) score += 25;
+
+    // Database integration (20 points)
+    const hasDB = paths.some((p: string) =>
+        p.includes('prisma') || p.includes('mongoose') || p.includes('sequelize') ||
+        p.includes('typeorm') || p.includes('drizzle') || p.includes('supabase')
+    );
+    if (hasDB) score += 20;
+
+    // API routes structure (20 points)
+    const apiRoutes = paths.filter((p: string) =>
+        p.includes('route') || p.includes('controller') || p.includes('api/')
+    );
+    if (apiRoutes.length > 5) score += 10;
+    if (apiRoutes.length > 15) score += 10;
+
+    // Middleware & Authentication (15 points)
+    const hasMiddleware = paths.some((p: string) => p.includes('middleware'));
+    const hasAuth = paths.some((p: string) => p.includes('auth'));
+    if (hasMiddleware) score += 8;
+    if (hasAuth) score += 7;
+
+    // Models/Schemas (10 points)
+    const hasModels = paths.some((p: string) => p.includes('model') || p.includes('schema'));
+    if (hasModels) score += 10;
+
+    // Services/Business Logic (10 points)
+    const hasServices = paths.some((p: string) => p.includes('service') || p.includes('lib/'));
+    if (hasServices) score += 10;
+
+    return Math.min(score, 100);
+}
+
+/**
+ * Analyze frontend architecture quality (0% weight - for future use)
+ */
+function analyzeFrontendArchitecture(tree: any): number {
+    const files = tree.tree || [];
+    const paths = files.map((f: any) => f.path.toLowerCase());
+    let score = 0;
+
+    // Component structure
+    const hasComponents = paths.some((p: string) => p.includes('component'));
+    if (hasComponents) score += 30;
+
+    // State management
+    const hasStateManagement = paths.some((p: string) =>
+        p.includes('redux') || p.includes('zustand') || p.includes('context')
+    );
+    if (hasStateManagement) score += 20;
+
+    // Styling
+    const hasStyling = paths.some((p: string) =>
+        p.includes('.css') || p.includes('.scss') || p.includes('tailwind')
+    );
+    if (hasStyling) score += 20;
+
+    // Pages/Routes
+    const hasPages = paths.some((p: string) => p.includes('page') || p.includes('route'));
+    if (hasPages) score += 30;
+
+    return Math.min(score, 100);
+}
+
+/**
+ * Analyze API design quality (5% weight)
+ */
+function analyzeAPIDesign(tree: any): number {
+    const files = tree.tree || [];
+    const paths = files.map((f: any) => f.path.toLowerCase());
+    let score = 0;
+
+    // RESTful structure (40 points)
+    const apiFiles = paths.filter((p: string) => p.includes('api/'));
+    if (apiFiles.length > 3) score += 20;
+    if (apiFiles.length > 10) score += 20;
+
+    // API versioning (20 points)
+    const hasVersioning = paths.some((p: string) => p.includes('v1') || p.includes('v2'));
+    if (hasVersioning) score += 20;
+
+    // OpenAPI/Swagger (20 points)
+    const hasSwagger = paths.some((p: string) =>
+        p.includes('swagger') || p.includes('openapi')
+    );
+    if (hasSwagger) score += 20;
+
+    // API documentation (20 points)
+    const hasAPIDocs = paths.some((p: string) =>
+        p.includes('api.md') || p.includes('endpoints')
+    );
+    if (hasAPIDocs) score += 20;
+
+    return Math.min(score, 100);
 }

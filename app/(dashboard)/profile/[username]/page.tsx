@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, use } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow, getDay } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { UserPlus, Check, MessageSquare, Clock, Wifi, Search, X, Loader2, GitCommit, FileText, Cpu, ExternalLink, Github, Terminal } from 'lucide-react'
+import { UserPlus, Check, MessageSquare, Clock, Wifi, Search, Github, ExternalLink, Star, GitFork, Users, Calendar, MapPin, Link as LinkIcon, Mail, Twitter, Building, X, Loader2, Terminal, Cpu, GitCommit, Activity, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast'
 import { toast } from 'sonner'
 
@@ -576,6 +576,43 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
                                                     })()}
                                                 </div>
                                             </section>
+
+                                            {/* Quality Breakdown Section */}
+                                            {remoteAnalysis.qualityBreakdown && (
+                                                <section>
+                                                    <div className="flex items-center gap-3 mb-8">
+                                                        <Activity className="w-5 h-5 text-white/40" />
+                                                        <h3 className="text-sm font-black tracking-[0.4em] uppercase text-white/60">Quality_Metrics</h3>
+                                                    </div>
+                                                    <div className="space-y-4">
+                                                        {Object.entries({
+                                                            'Backend Architecture': remoteAnalysis.qualityBreakdown.maintenance || 0,
+                                                            'README Quality': remoteAnalysis.qualityBreakdown.readmeQuality || 0,
+                                                            'Code Organization': remoteAnalysis.qualityBreakdown.codeOrganization || 0,
+                                                            'Test Coverage': remoteAnalysis.qualityBreakdown.testCoverage || 0,
+                                                            'Documentation': remoteAnalysis.qualityBreakdown.documentation || 0,
+                                                            'Commit Activity': remoteAnalysis.qualityBreakdown.commitActivity || 0,
+                                                        }).map(([name, score]) => (
+                                                            <div key={name} className="space-y-2">
+                                                                <div className="flex justify-between items-center">
+                                                                    <span className="text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">{name}</span>
+                                                                    <span className="text-xs font-black text-white tabular-nums">{score}%</span>
+                                                                </div>
+                                                                <div className="w-full bg-white/10 h-2 overflow-hidden relative">
+                                                                    <div
+                                                                        className={`h-full transition-all duration-1000 ease-in-out ${score >= 80 ? 'bg-green-500' :
+                                                                            score >= 60 ? 'bg-yellow-500' :
+                                                                                score >= 40 ? 'bg-orange-500' :
+                                                                                    'bg-red-500'
+                                                                            }`}
+                                                                        style={{ width: `${score}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </section>
+                                            )}
                                         </div>
 
                                         {/* Right: Commits & Quality */}
