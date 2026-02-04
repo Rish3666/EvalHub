@@ -22,8 +22,42 @@ export default function InboxPage() {
     const supabase = createClient()
 
     useEffect(() => {
-        fetchRequests()
-    }, [])
+        let channel: any;
+
+        const setupRealtime = async () => {
+            // Initial fetch
+            await fetchRequests();
+
+            // Get session for realtime filter
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            // Subscribe to changes
+            channel = supabase
+                .channel('inbox-friend-requests')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'friend_requests',
+                        filter: `addressee_id=eq.${session.user.id}`
+                    },
+                    (payload) => {
+                        console.log('Realtime Update:', payload);
+                        toast.info("Inbox updated");
+                        fetchRequests();
+                    }
+                )
+                .subscribe();
+        };
+
+        setupRealtime();
+
+        return () => {
+            if (channel) supabase.removeChannel(channel);
+        };
+    }, []);
 
     async function fetchRequests() {
         setLoading(true)
