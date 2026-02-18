@@ -2,14 +2,30 @@
 
 > Transform your code into a digital fingerprint. Analyze repositories, score skills, and establish network connectivity.
 
-[![Deployment](https://img.shields.io/badge/Status-Online-green)](https://eval-hub.vercel.app)
-[![UI](https://img.shields.io/badge/Design-Stitch--Remix-black)](https://eval-hub.vercel.app)
+[![Deployment](https://img.shields.io/badge/Status-Online-green)](https://eval-83y6xew4x-rishvarmas-projects.vercel.app/)
+[![UI](https://img.shields.io/badge/Design-Stitch--Remix-black)](https://eval-83y6xew4x-rishvarmas-projects.vercel.app/)
 [![AI](https://img.shields.io/badge/AI-Gemini--1.5--Flash-blue)](https://aistudio.google.com/)
 
 ---
 
 ## ⚡ Overview
 EvalHub is a terminal-inspired developer platform that goes beyond resumes. It uses AI to dissect repository metadata, project architecture, and code frequency to build a **Score Card** that proves your skills.
+
+## 📸 Screenshots
+
+### Desktop View
+<p align="center">
+  <img src="public/screenshots/home.png" width="45%" />
+  <img src="public/screenshots/profile.png" width="45%" /> 
+</p>
+<p align="center">
+  <img src="public/screenshots/leaderboard.png" width="90%" />
+</p>
+
+### Mobile View
+<p align="center">
+  <img src="public/screenshots/mobile.png" width="30%" />
+</p>
 
 ## 🚀 Key Features
 
