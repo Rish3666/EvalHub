@@ -548,6 +548,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
                                                                 h3: ({ node, ...props }) => <h3 className="text-sm font-black text-white mt-4 mb-2 uppercase tracking-wider flex items-center gap-2" {...props} />,
                                                                 strong: ({ node, ...props }) => <strong className="font-bold text-white" {...props} />,
                                                                 p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                                hr: ({ node, ...props }) => <hr className="border-white/10 my-6" {...props} />,
                                                             }}
                                                         >
                                                             {remoteAnalysis.architectureNotes || "NO_README_ANALYSIS_AVAILABLE"}
@@ -644,7 +645,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ userna
                                                                 {commit.commit.message}
                                                             </p>
                                                             <p className="text-[9px] text-gray-500 mt-2 uppercase tracking-widest font-black">
-                                                                {commit.sha.substring(0, 8)} // {formatDistanceToNow(new Date(commit.commit.author.date))} AGO
+                                                                {commit.sha.substring(0, 7).toLowerCase()} // {formatDistanceToNow(new Date(commit.commit.author.date))} AGO
                                                             </p>
                                                         </div>
                                                     )) : (

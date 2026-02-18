@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation'
 import { Loader2, GitCommit, Cpu, ExternalLink, Github, Terminal, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { AIAssistant } from '@/components/AIAssistant'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface GitHubUser {
     login: string;
@@ -431,10 +433,21 @@ export default function ProfilePage() {
                                                     <div className="w-2 h-6 bg-white"></div>
                                                     <h3 className="text-sm font-black tracking-[0.4em] uppercase text-white/60">System_Summary</h3>
                                                 </div>
-                                                <div className="border-l-2 border-white/10 pl-8 relative">
-                                                    <p className="text-xl leading-relaxed font-light tracking-wide text-gray-300">
+                                                <div className="border-l-2 border-white/10 pl-8 relative text-gray-300 text-sm leading-relaxed space-y-4">
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            ul: ({ node, ...props }) => <ul className="list-disc pl-4 space-y-2 my-2 text-white/90" {...props} />,
+                                                            ol: ({ node, ...props }) => <ol className="list-decimal pl-4 space-y-2 my-2 text-white/90" {...props} />,
+                                                            li: ({ node, ...props }) => <li className="pl-1" {...props} />,
+                                                            h3: ({ node, ...props }) => <h3 className="text-sm font-black text-white mt-4 mb-2 uppercase tracking-wider flex items-center gap-2" {...props} />,
+                                                            strong: ({ node, ...props }) => <strong className="font-bold text-white" {...props} />,
+                                                            p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                            hr: ({ node, ...props }) => <hr className="border-white/10 my-6" {...props} />,
+                                                        }}
+                                                    >
                                                         {remoteAnalysis.architectureNotes || "NO_README_ANALYSIS_AVAILABLE"}
-                                                    </p>
+                                                    </ReactMarkdown>
                                                 </div>
                                             </section>
 
@@ -488,7 +501,7 @@ export default function ProfilePage() {
                                                                 {commit.commit.message}
                                                             </p>
                                                             <p className="text-[9px] text-gray-500 mt-2 uppercase tracking-widest font-black">
-                                                                {commit.sha.substring(0, 8)} // {formatDistanceToNow(new Date(commit.commit.author.date))} AGO
+                                                                {commit.sha.substring(0, 7).toLowerCase()} // {formatDistanceToNow(new Date(commit.commit.author.date))} AGO
                                                             </p>
                                                         </div>
                                                     )) : (

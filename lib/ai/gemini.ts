@@ -497,7 +497,7 @@ function generateHardIndexedAnalysis(projectData: ProjectData, scores: any): Ana
             strengths: strengths.length > 0 ? strengths : ["Potential for growth", "Clear basic structure"],
             techAreas: projectData.techStack,
             architectureNotes: `### 🔍 AI Architectural Analysis (Hard Indexed)
-            
+
 ${architectureNotes}
 • **Code Organization:** ${scores.codeOrganization > 60 ? "Modular and clean." : "Needs better folder structure separation."}
 • **Adaptability:** This codebase is ${scores.adaptationScore > 70 ? "highly adaptable" : "somewhat rigid"} based on current patterns.
