@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { UserPresenceUpdater } from "@/components/UserPresenceUpdater";
 import { AIContextProvider } from "@/components/AIContextProvider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({ subsets: ["latin"] });
 const jetbrainsMono = JetBrains_Mono({
@@ -62,6 +63,7 @@ export default function RootLayout({
                     {children}
                     <Toaster />
                 </AIContextProvider>
+                <SpeedInsights />
             </body>
         </html>
     );
