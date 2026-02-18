@@ -99,152 +99,158 @@ export function TerminalHeader() {
     const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
 
     return (
-        <header className="w-full border-b border-white bg-black px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 z-50 gap-4">
-            <Link href="/feed" className="flex items-center gap-2 md:gap-4 shrink-0 hover:opacity-80 transition-opacity">
-                <img src="/logo.jpg" alt="EvalHub" className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/20" />
-                <h2 className="text-white text-lg md:text-xl font-bold tracking-widest uppercase font-mono">EVALHUB_</h2>
-            </Link>
+        <>
+            <header className="w-full border-b border-white bg-black px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 z-50 gap-4">
+                <Link href="/feed" className="flex items-center gap-2 md:gap-4 shrink-0 hover:opacity-80 transition-opacity">
+                    <img src="/logo.jpg" alt="EvalHub" className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/20" />
+                    <h2 className="text-white text-lg md:text-xl font-bold tracking-widest uppercase font-mono">EVALHUB_</h2>
+                </Link>
 
-            <div className="hidden md:block flex-1 max-w-2xl px-8">
-                <div className="relative w-full" ref={searchRef}>
-                    <input
-                        className="w-full bg-black border border-white text-white px-4 py-2 font-mono text-sm placeholder-gray-500 focus:outline-none focus:ring-0 focus:border-white rounded-none tracking-widest shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] focus:shadow-none transition-shadow"
-                        placeholder="SEARCH PROJECTS OR USERS..."
-                        type="text"
-                        value={query}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
-                        onFocus={() => {
-                            if (results.length > 0) setShowResults(true)
-                        }}
-                        onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
-                            if (event.key === 'Enter' && query.trim()) {
-                                event.preventDefault()
-                                setShowResults(false)
-                                router.push(`/profile/${encodeURIComponent(query.trim())}`)
-                            }
-                        }}
-                    />
-                    <Search className="absolute right-3 top-2 text-gray-500 w-4 h-4" />
+                <div className="hidden md:block flex-1 max-w-2xl px-8">
+                    <div className="relative w-full" ref={searchRef}>
+                        <input
+                            className="w-full bg-black border border-white text-white px-4 py-2 font-mono text-sm placeholder-gray-500 focus:outline-none focus:ring-0 focus:border-white rounded-none tracking-widest shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] focus:shadow-none transition-shadow"
+                            placeholder="SEARCH PROJECTS OR USERS..."
+                            type="text"
+                            value={query}
+                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
+                            onFocus={() => {
+                                if (results.length > 0) setShowResults(true)
+                            }}
+                            onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
+                                if (event.key === 'Enter' && query.trim()) {
+                                    event.preventDefault()
+                                    setShowResults(false)
+                                    router.push(`/profile/${encodeURIComponent(query.trim())}`)
+                                }
+                            }}
+                        />
+                        <Search className="absolute right-3 top-2 text-gray-500 w-4 h-4" />
 
-                    {showResults && (
-                        <div className="absolute left-0 right-0 top-[calc(100%+8px)] border border-white bg-black text-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] z-50">
-                            <div className="px-4 py-2 text-xs font-mono text-gray-400 border-b border-white/20 tracking-widest uppercase">
-                                {isSearching ? 'Searching GitHub...' : 'GitHub Users'}
-                            </div>
-                            {results.length === 0 && !isSearching && (
-                                <div className="px-4 py-3 text-sm text-gray-400 font-mono">
-                                    No profiles found. Try a different name.
+                        {showResults && (
+                            <div className="absolute left-0 right-0 top-[calc(100%+8px)] border border-white bg-black text-white shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] z-50">
+                                <div className="px-4 py-2 text-xs font-mono text-gray-400 border-b border-white/20 tracking-widest uppercase">
+                                    {isSearching ? 'Searching GitHub...' : 'GitHub Users'}
                                 </div>
-                            )}
-                            {results.map((result: any) => (
-                                <button
-                                    key={result.id}
-                                    className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-white hover:text-black transition-colors"
-                                    type="button"
-                                    onClick={() => handleNavigate(result.username)}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full border border-white/40 overflow-hidden bg-white/10 flex items-center justify-center">
-                                            {result.avatar_url ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={result.avatar_url} alt={result.username} className="h-full w-full object-cover" />
-                                            ) : (
-                                                <span className="text-xs font-bold">{result.username[0]?.toUpperCase()}</span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div className="text-sm font-semibold">{result.full_name || result.username}</div>
-                                            <div className="text-xs text-gray-400">@{result.username}</div>
-                                        </div>
+                                {results.length === 0 && !isSearching && (
+                                    <div className="px-4 py-3 text-sm text-gray-400 font-mono">
+                                        No profiles found. Try a different name.
                                     </div>
-                                    <UserPlus className="h-4 w-4 opacity-70" />
-                                </button>
-                            ))}
-                            {query.trim().length >= 2 && !isSearching && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowResults(false)
-                                        router.push(`/profile/${encodeURIComponent(query.trim())}`)
-                                    }}
-                                    className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 border-t border-white/20 hover:bg-white hover:text-black transition-colors"
-                                >
-                                    <span className="text-sm font-mono tracking-widest">VIEW_PROFILE</span>
-                                    <span className="text-xs text-gray-400">@{query.trim()}</span>
-                                </button>
-                            )}
-                        </div>
-                    )}
+                                )}
+                                {results.map((result: any) => (
+                                    <button
+                                        key={result.id}
+                                        className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-white hover:text-black transition-colors"
+                                        type="button"
+                                        onClick={() => handleNavigate(result.username)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full border border-white/40 overflow-hidden bg-white/10 flex items-center justify-center">
+                                                {result.avatar_url ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img src={result.avatar_url} alt={result.username} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span className="text-xs font-bold">{result.username[0]?.toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-semibold">{result.full_name || result.username}</div>
+                                                <div className="text-xs text-gray-400">@{result.username}</div>
+                                            </div>
+                                        </div>
+                                        <UserPlus className="h-4 w-4 opacity-70" />
+                                    </button>
+                                ))}
+                                {query.trim().length >= 2 && !isSearching && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowResults(false)
+                                            router.push(`/profile/${encodeURIComponent(query.trim())}`)
+                                        }}
+                                        className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 border-t border-white/20 hover:bg-white hover:text-black transition-colors"
+                                    >
+                                        <span className="text-sm font-mono tracking-widest">VIEW_PROFILE</span>
+                                        <span className="text-xs text-gray-400">@{query.trim()}</span>
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
 
-            <nav className="hidden md:flex items-center gap-4 lg:gap-8 shrink-0">
-                <Link
-                    href="/feed"
-                    className={cn(
-                        "text-xs lg:text-sm font-bold px-4 lg:px-6 py-2 rounded-full uppercase tracking-widest transition-colors font-mono",
-                        isActive('/feed') || pathname === '/feed'
-                            ? "text-black bg-white border border-white hover:bg-gray-200"
-                            : "text-white hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
-                    )}
-                >
-                    HOME
-                </Link>
-                <Link
-                    href="/community"
-                    className={cn(
-                        "text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors font-mono",
-                        isActive('/community')
-                            ? "text-black bg-white border border-white px-4 lg:px-6 py-2 rounded-full hover:bg-gray-200"
-                            : "text-white font-medium hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
-                    )}
-                >
-                    COMMUNITY
-                </Link>
-                <Link
-                    href="/inbox"
-                    className={cn(
-                        "text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors font-mono",
-                        isActive('/inbox')
-                            ? "text-black bg-white border border-white px-4 lg:px-6 py-2 rounded-full hover:bg-gray-200"
-                            : "text-white font-medium hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
-                    )}
-                >
-                    INBOX
-                </Link>
-                <Link
-                    href="/profile"
-                    className={cn(
-                        "text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors font-mono",
-                        isActive('/profile')
-                            ? "text-black bg-white border border-white px-4 lg:px-6 py-2 rounded-full hover:bg-gray-200"
-                            : "text-white font-medium hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
-                    )}
-                >
-                    PROFILE
-                </Link>
-            </nav>
+                <nav className="hidden md:flex items-center gap-4 lg:gap-8 shrink-0">
+                    <Link
+                        href="/feed"
+                        className={cn(
+                            "text-xs lg:text-sm font-bold px-4 lg:px-6 py-2 rounded-full uppercase tracking-widest transition-colors font-mono",
+                            isActive('/feed') || pathname === '/feed'
+                                ? "text-black bg-white border border-white hover:bg-gray-200"
+                                : "text-white hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
+                        )}
+                    >
+                        HOME
+                    </Link>
+                    <Link
+                        href="/community"
+                        className={cn(
+                            "text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors font-mono",
+                            isActive('/community')
+                                ? "text-black bg-white border border-white px-4 lg:px-6 py-2 rounded-full hover:bg-gray-200"
+                                : "text-white font-medium hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
+                        )}
+                    >
+                        COMMUNITY
+                    </Link>
+                    <Link
+                        href="/inbox"
+                        className={cn(
+                            "text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors font-mono",
+                            isActive('/inbox')
+                                ? "text-black bg-white border border-white px-4 lg:px-6 py-2 rounded-full hover:bg-gray-200"
+                                : "text-white font-medium hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
+                        )}
+                    >
+                        INBOX
+                    </Link>
+                    <Link
+                        href="/profile"
+                        className={cn(
+                            "text-xs lg:text-sm font-bold uppercase tracking-widest transition-colors font-mono",
+                            isActive('/profile')
+                                ? "text-black bg-white border border-white px-4 lg:px-6 py-2 rounded-full hover:bg-gray-200"
+                                : "text-white font-medium hover:underline decoration-2 underline-offset-4 text-gray-400 hover:text-white"
+                        )}
+                    >
+                        PROFILE
+                    </Link>
+                </nav>
 
-            <div className="md:hidden flex items-center gap-4">
-                <button
-                    onClick={() => {
-                        setIsMenuOpen(false)
-                        setIsSearchOpen(!isSearchOpen)
-                    }}
-                    className="text-white hover:opacity-80 transition-opacity"
-                >
-                    <Search className="w-6 h-6" />
-                </button>
-                <button
-                    onClick={() => {
-                        setIsSearchOpen(false)
-                        toggleMenu()
-                    }}
-                    className="text-white hover:opacity-80 transition-opacity"
-                >
-                    <Menu className="w-6 h-6" />
-                </button>
-            </div>
+                <div className="md:hidden flex items-center gap-1 -mr-2">
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setIsMenuOpen(false);
+                            setIsSearchOpen(!isSearchOpen);
+                        }}
+                        className="p-3 text-white hover:opacity-80 transition-opacity active:bg-white/10 rounded-full"
+                        aria-label="Toggle search"
+                    >
+                        <Search className="w-6 h-6" />
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setIsSearchOpen(false);
+                            toggleMenu();
+                        }}
+                        className="p-3 text-white hover:opacity-80 transition-opacity active:bg-white/10 rounded-full"
+                        aria-label="Toggle menu"
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+                </div>
+            </header>
 
             {/* Mobile Search Overlay */}
             {isSearchOpen && (
@@ -311,22 +317,27 @@ export function TerminalHeader() {
                 </div>
             )}
 
-            {/* Mobile Menu Overlay */}
             {isMenuOpen && (
                 <div className="fixed inset-0 z-[100] bg-black md:hidden animate-in fade-in duration-300">
-                    <div className="flex flex-col h-full border-2 border-white m-4">
-                        <div className="flex items-center justify-between p-6 border-b border-white">
+                    <div className="flex flex-col h-full border-2 border-white m-4 relative overflow-hidden">
+                        <div className="flex items-center justify-between p-6 border-b border-white shrink-0">
                             <h2 className="text-white text-xl font-bold tracking-widest uppercase font-mono">MENU_</h2>
-                            <button onClick={toggleMenu} className="text-white">
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    toggleMenu();
+                                }}
+                                className="text-white p-2"
+                            >
                                 <span className="material-symbols-outlined text-3xl">close</span>
                             </button>
                         </div>
-                        <nav className="flex flex-col flex-1 p-6 gap-6">
+                        <nav className="flex flex-col flex-1 p-6 gap-4 overflow-y-auto">
                             <Link
                                 href="/feed"
                                 onClick={toggleMenu}
                                 className={cn(
-                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all",
+                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all shrink-0",
                                     isActive('/feed') || pathname === '/feed' ? "border-white bg-white text-black" : "text-white hover:border-white/20"
                                 )}
                             >
@@ -336,7 +347,7 @@ export function TerminalHeader() {
                                 href="/community"
                                 onClick={toggleMenu}
                                 className={cn(
-                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all",
+                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all shrink-0",
                                     isActive('/community') ? "border-white bg-white text-black" : "text-white hover:border-white/20"
                                 )}
                             >
@@ -346,7 +357,7 @@ export function TerminalHeader() {
                                 href="/inbox"
                                 onClick={toggleMenu}
                                 className={cn(
-                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all",
+                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all shrink-0",
                                     isActive('/inbox') ? "border-white bg-white text-black" : "text-white hover:border-white/20"
                                 )}
                             >
@@ -356,19 +367,19 @@ export function TerminalHeader() {
                                 href="/profile"
                                 onClick={toggleMenu}
                                 className={cn(
-                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all",
+                                    "text-2xl font-bold uppercase tracking-[0.2em] font-mono p-4 border border-transparent transition-all shrink-0",
                                     isActive('/profile') ? "border-white bg-white text-black" : "text-white hover:border-white/20"
                                 )}
                             >
                                 / PROFILE
                             </Link>
                         </nav>
-                        <div className="p-6 border-t border-white text-center">
+                        <div className="p-6 border-t border-white text-center shrink-0">
                             <p className="text-[10px] text-gray-500 tracking-[0.4em] uppercase font-mono">EVALHUB v1.0.0 // PROTOCOL_READY</p>
                         </div>
                     </div>
                 </div>
             )}
-        </header>
+        </>
     )
 }
