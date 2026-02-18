@@ -246,30 +246,30 @@ export default function FeedPage() {
 
     return (
         <div className="w-full max-w-[800px] mx-auto relative">
-            <div className="w-full pt-4 border-b border-white/20 pb-6 mb-12">
-                <div className="flex justify-between items-start mb-4">
-                    <h1 className="text-white text-3xl md:text-5xl font-bold leading-tight tracking-wider mb-2">
+            <div className="w-full pt-4 border-b border-white/20 pb-6 mb-8 md:mb-12">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h1 className="text-white text-3xl md:text-5xl font-bold leading-tight tracking-wider">
                         Home
                     </h1>
                     {/* Filter Controls */}
-                    <div className="flex border border-white/20 bg-black">
+                    <div className="flex border border-white/20 bg-black w-full md:w-auto">
                         <button
                             onClick={() => setFilter('friends')}
-                            className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors", filter === 'friends' ? 'bg-white text-black' : 'text-gray-400')}
+                            className={cn("flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors", filter === 'friends' ? 'bg-white text-black' : 'text-gray-400')}
                         >
                             Friends
                         </button>
                         <div className="w-[1px] bg-white/20"></div>
                         <button
                             onClick={() => setFilter('followers')}
-                            className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors", filter === 'followers' ? 'bg-white text-black' : 'text-gray-400')}
+                            className={cn("flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors", filter === 'followers' ? 'bg-white text-black' : 'text-gray-400')}
                         >
                             Followers
                         </button>
                         <div className="w-[1px] bg-white/20"></div>
                         <button
                             onClick={() => setFilter('both')}
-                            className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors", filter === 'both' ? 'bg-white text-black' : 'text-gray-400')}
+                            className={cn("flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[10px] font-bold uppercase tracking-widest hover:bg-white hover:text-black transition-colors", filter === 'both' ? 'bg-white text-black' : 'text-gray-400')}
                         >
                             Both
                         </button>
@@ -329,31 +329,30 @@ export default function FeedPage() {
                             </div>
 
                             {/* Content */}
-                            <div className="flex flex-col gap-4 p-4 border border-white/10 hover:border-white/30 transition-colors bg-white/5">
-                                <h3 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <div className="flex flex-col gap-4 p-3 md:p-4 border border-white/10 hover:border-white/30 transition-colors bg-white/5">
+                                <h3 className="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-2">
                                     {item.name}
-                                    <a href={item.html_url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a href={item.html_url} target="_blank" rel="noopener noreferrer" className="md:opacity-0 group-hover:opacity-100 transition-opacity">
                                         <span className="material-symbols-outlined text-sm text-gray-400 hover:text-white">open_in_new</span>
                                     </a>
                                 </h3>
 
-                                <p className="text-gray-300 text-sm md:text-base leading-relaxed tracking-wide font-light">
+                                <p className="text-gray-300 text-sm md:text-base leading-relaxed tracking-wide font-light line-clamp-3 md:line-clamp-none">
                                     {item.description || "No description provided."}
                                 </p>
 
                                 {/* Latest Stats */}
-                                <div className="flex items-center justify-between mt-2 pt-4 border-t border-white/10 text-xs font-mono text-gray-400">
+                                <div className="flex flex-col md:flex-row items-start md:items-center justify-between mt-2 pt-4 border-t border-white/10 text-[10px] md:text-xs font-mono text-gray-400 gap-4">
                                     <div className="flex items-center gap-4">
                                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">star</span> {item.stargazers_count}</span>
                                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">commit</span> Latest Commit</span>
                                     </div>
-                                    <Link href={`/profile/${item.owner.login}`} className="text-white hover:underline decoration-white underline-offset-4 uppercase tracking-widest font-bold">
+                                    <Link href={`/profile/${item.owner.login}`} className="text-white hover:underline decoration-white underline-offset-4 uppercase tracking-widest font-bold w-full md:w-auto text-right">
                                         &gt; Analyze Project
                                     </Link>
                                 </div>
                             </div>
 
-                            {/* Actions */}
                             {/* Actions */}
                             <div className="flex items-center gap-6 px-2">
                                 <button
@@ -375,17 +374,16 @@ export default function FeedPage() {
                                     <span className="material-symbols-outlined text-xl">chat_bubble</span>
                                     <span className="text-xs font-mono">{interactions[item.id]?.comments || 0}</span>
                                 </button>
-                                {/* Removed Share Button as requested */}
                             </div>
                         </article>
                     ))
                 )}
             </div>
 
-            {/* Comments Modal (Custom implementation to avoid heavy UI lib dependency if not needed, but sticking to simple overlay) */}
+            {/* Comments Modal */}
             {activeCommentRepo && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setActiveCommentRepo(null)}>
-                    <div className="bg-black border border-white w-full max-w-lg h-[600px] flex flex-col relative" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black/80 z-[110] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200" onClick={() => setActiveCommentRepo(null)}>
+                    <div className="bg-black border-t md:border border-white w-full max-w-lg h-[80dvh] md:h-[600px] flex flex-col relative" onClick={e => e.stopPropagation()}>
                         {/* Header */}
                         <div className="p-4 border-b border-white/20 flex justify-between items-center">
                             <h3 className="font-bold tracking-widest uppercase truncate max-w-[80%]">Comments // {activeCommentRepo.name}</h3>

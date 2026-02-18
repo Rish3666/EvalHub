@@ -125,8 +125,8 @@ export function AIAssistant({ context }: AIAssistantProps) {
 
     return (
         <div className={cn(
-            "fixed right-6 z-50 bg-black border-2 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] transition-all",
-            isMinimized ? "bottom-6 w-80" : "bottom-6 w-96 h-[600px]"
+            "fixed right-0 md:right-6 z-50 bg-black border-2 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] transition-all",
+            isMinimized ? "bottom-6 w-80 right-6" : "bottom-0 md:bottom-6 w-full md:w-96 h-[100dvh] md:h-[600px]"
         )}>
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b-2 border-white/20 bg-black">

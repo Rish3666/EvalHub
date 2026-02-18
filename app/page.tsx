@@ -38,10 +38,10 @@ export default function LandingPage() {
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className="space-y-2"
                 >
-                    <h1 className="font-display text-7xl md:text-8xl lg:text-9xl font-bold tracking-tighter text-white uppercase selection:bg-white selection:text-black drop-shadow-2xl">
+                    <h1 className="font-display text-5xl md:text-8xl lg:text-9xl font-bold tracking-tighter text-white uppercase selection:bg-white selection:text-black drop-shadow-2xl px-4">
                         EVALHUB
                     </h1>
-                    <p className="text-lg md:text-xl font-light tracking-widest text-white/80 max-w-2xl mx-auto uppercase selection:bg-white selection:text-black drop-shadow-md">
+                    <p className="text-sm md:text-xl font-light tracking-widest text-white/80 max-w-2xl mx-auto uppercase selection:bg-white selection:text-black drop-shadow-md px-6">
                         The Proof-of-Work Layer for Developers.
                     </p>
                 </motion.div>
@@ -50,13 +50,13 @@ export default function LandingPage() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.4, duration: 0.5 }}
-                    className="flex flex-col items-center gap-6 w-full max-w-md"
+                    className="flex flex-col items-center gap-6 w-full max-w-md px-6"
                 >
                     <Button
                         onClick={handleLogin}
-                        className="flex items-center justify-center gap-4 bg-white text-black hover:bg-white/90 px-10 py-10 w-full font-bold text-xl tracking-widest uppercase transition-all duration-200 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.4)] hover:shadow-[0_0_50px_rgba(255,255,255,0.6)] cursor-pointer"
+                        className="flex items-center justify-center gap-3 md:gap-4 bg-white text-black hover:bg-white/90 px-6 py-8 md:px-10 md:py-10 w-full font-bold text-lg md:text-xl tracking-widest uppercase transition-all duration-200 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.4)] hover:shadow-[0_0_50px_rgba(255,255,255,0.6)] cursor-pointer"
                     >
-                        <Github className="w-8 h-8" />
+                        <Github className="w-6 h-6 md:w-8 md:h-8" />
                         LOGIN WITH GITHUB
                     </Button>
 
