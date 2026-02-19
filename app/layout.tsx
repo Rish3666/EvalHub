@@ -64,6 +64,7 @@ export default function RootLayout({
                     <SpeedInsights />
                     <Toaster />
                 </AIContextProvider>
+                <SpeedInsights />
             </body>
         </html>
     );
